@@ -19,7 +19,7 @@ python -m http.server 8000
 
 Or use the VS Code **Live Server** extension and open `index.html`. Recommended browsers: latest Chrome, Edge or Firefox (WebAssembly + Web Workers + IndexedDB required).
 
-On first load the app downloads the SQLite database (~a few MB) from GitHub and caches it in IndexedDB, so subsequent loads are near-instant.
+On first load the app reads the SQLite database from `./data/db/cricket.db` (shipped in this repo) and caches it in IndexedDB, so subsequent loads are near-instant.
 
 ---
 
@@ -72,15 +72,15 @@ Source data lives in [`data/csvs/`](data/csvs/) and a pre-built SQLite database 
 | `venue_stats.csv`         | Pre-aggregated per-venue / per-year / per-format metrics                |
 | `venue_stats_format.csv`  | Same as above, normalised by format                                     |
 
-### Remote data
+### Hosting / deployment
 
-The app fetches the SQLite database from the companion GitHub repository at startup, so the project also runs cleanly from a fresh clone without any extra setup:
+Everything the app needs ships in the repo, so the simplest deploy is **GitHub Pages**:
 
-```
-https://raw.githubusercontent.com/DushyantPathania/DVP-p2/main/data/db/cricket.db
-```
+1. Push the repo to <https://github.com/LazyStud/DVP>.
+2. On GitHub, go to **Settings → Pages → Build and deployment → Deploy from branch**, pick `main` and `/ (root)`.
+3. After a minute the site is live at `https://lazystud.github.io/DVP/`.
 
-The `venues.csv` (and the rest of the CSV pipeline) is mirrored in the same repo: <https://github.com/DushyantPathania/DVP-p2>. To point the app at a local copy instead, edit the `DB_URL` constant near the top of [`map.js`](map.js).
+The `DB_URL` constant near the top of [`map.js`](map.js) is set to `./data/db/cricket.db`, so the DB loads from the same origin as the page — no extra hosting needed. Netlify / Vercel / Cloudflare Pages work the same way (drop the folder in, no build command, publish directory = repo root).
 
 ---
 
@@ -138,4 +138,4 @@ DVP/
 - **Author:** Dushyant Pathania (Monash student ID 34439765)
 - **Unit:** Monash University, Data Visualisation and Processing
 - **Data:** Cleaned and aggregated from publicly available international-cricket scorecard datasets
-- **Companion repo (hosts `cricket.db` and CSVs):** <https://github.com/DushyantPathania/DVP-p2>
+- **Repo:** <https://github.com/LazyStud/DVP>

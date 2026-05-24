@@ -10,8 +10,8 @@
 
 (async function () {
   /* ----------------------------- Config ----------------------------------- */
-  // Prefer raw GitHub (or replace with your local path "./data/db/cricket.db")
-  const DB_URL = "https://raw.githubusercontent.com/DushyantPathania/DVP-p2/main/data/db/cricket.db";
+  // DB is shipped alongside the site (same repo). Served over HTTP from ./data/db/.
+  const DB_URL = "./data/db/cricket.db";
 
   const ICON_PATH  = "data/icon/CricketStadium.png";
   const ICON_BASE  = 10;
