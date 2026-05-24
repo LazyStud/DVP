@@ -13,11 +13,18 @@ The project is fully static — no build step, no npm install, no server-side co
 From the project root:
 
 ```powershell
+npm install       # first time only
+npm run dev       # starts Vite dev server at http://localhost:5173 with hot reload
+```
+
+Or if you don't have Node/npm:
+
+```powershell
 python -m http.server 8000
 # then open http://localhost:8000/index.html
 ```
 
-Or use the VS Code **Live Server** extension and open `index.html`. Recommended browsers: latest Chrome, Edge or Firefox (WebAssembly + Web Workers + IndexedDB required).
+VS Code **Live Server** also works. Recommended browsers: latest Chrome, Edge or Firefox (WebAssembly + Web Workers + IndexedDB required).
 
 On first load the app reads the SQLite database from `./data/db/cricket.db` (shipped in this repo) and caches it in IndexedDB, so subsequent loads are near-instant.
 
