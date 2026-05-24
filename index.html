@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Global Cricket Insights • 2000–2025</title>
+  <link rel="stylesheet" href="styles.css?v=landing2" />
+</head>
+<body class="landing">
+  <!-- Background image layer -->
+  <div id="bgLayer" aria-hidden="true"></div>
+
+    <!-- Globe is OUTSIDE hero so it survives when hero hides -->
+  <div id="globe" role="img" aria-label="Interactive cricket world map"></div>
+
+    <!-- Left-side instruction box (dynamic: content updated by map.js) -->
+    <div id="instructionBox" class="instructions" aria-live="polite"></div>
+
+  <!-- Hero / Landing -->
+  <section class="hero">
+    <div class="hero-left">
+      <h1>Global Cricket Insights</h1>
+      <p>
+        Explore global cricket data from 2000–2025 with interactive visualisations and per-venue analysis.
+        This project loads match and innings CSV data into an in-browser SQL database, computes
+        metrics (home win %, matches hosted, venue batting/bowling aggregates, etc.), and
+        visualises them on a 2D map or a 3D globe.
+      </p>
+      <ul class="hero-points">
+        <li>Data: CSVs located in <code>data/csvs/</code> (matches, venues, innings, batting_innings, bowling_innings, venue_stats).</li>
+        <li>Processing: in-browser SQL (sql.js) powered by <code>db.js</code> plus a dedicated web worker (<code>venue-worker.js</code>) for heavy venue calculations.</li>
+        <li>Visuals: choropleth of <em>home win %</em>, "win spike" markers sized by matches hosted, and per-venue detail panels with innings-level breakdowns.</li>
+        <li>Interactions: year range slider, 2D/3D globe toggle, tilt control, click a country to list venues, and a Leaderboard overlay for batting and bowling stats.</li>
+        <li>Tech stack: D3, TopoJSON, sql.js, Web Workers, and vanilla HTML/CSS/JS. To run, open <code>index.html</code> in a browser or serve the folder with any static server.
+        </li>
+      </ul>
+      <button id="enterBtn" class="cta">Explore data</button>
+    </div>
+  </section>
+
+  <!-- UI chrome (hidden while landing via CSS) -->
+  <button id="menuBtn" class="hamburger" aria-label="Open leaderboards" aria-expanded="false">
+     <!-- leaderboard bar-chart SVG icon (replaces hamburger) -->
+     <svg class="leaderboard-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false" role="img">
+      <rect x="3" y="10" width="4" height="11" rx="1.2"></rect>
+      <rect x="10" y="6" width="4" height="15" rx="1.2"></rect>
+      <rect x="17" y="3" width="4" height="18" rx="1.2"></rect>
+     </svg>
+  </button>
+
+  <!-- top-right view toggle (user-provided markup) + dynamic text -->
+  <div class="toggle-wrap" aria-hidden="true">
+  <div id="toggleText" class="toggle-text" aria-hidden="true">Global Cricket Insights — interactive analytics for international cricket (2000–2025). Loads local CSVs into an in-browser SQL DB, computes home win % and venue metrics, produces leaderboards, and renders choropleth, win spikes and per-venue panels. Use the control to switch 3D globe / 2D map; use the year slider to filter years; click a country to view its venues and leaderboards.</div>
+    <div class="toggle">
+      <input type="checkbox" id="btn">
+      <label for="btn">
+        <span class="thumb"></span>
+      </label>
+      <div class="lights">
+        <span class="light-off"></span>
+        <span class="light-on"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend (created dynamically via D3 in map.js) -->
+
+  <!-- Year range slider -->
+  <section class="year-box" id="yearBox" aria-label="Years slider">
+    <div class="yr-header">
+      <span id="yearBoxValue">Years 2000–2025</span>
+    </div>
+    <div class="yr-slider">
+      <div class="yr-track"></div>
+      <div class="yr-fill"></div>
+      <div class="yr-thumb left"  role="slider" aria-valuemin="2000" aria-valuemax="2025" aria-valuenow="2000" tabindex="0">
+        <div class="yr-bubble" id="yrBubbleLeft">2000</div>
+      </div>
+      <div class="yr-thumb right" role="slider" aria-valuemin="2000" aria-valuemax="2025" aria-valuenow="2025" tabindex="0">
+        <div class="yr-bubble" id="yrBubbleRight">2025</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toast -->
+  <div id="loadingToast" class="toast">Loading…</div>
+
+  <!-- Overlay (Leaderboards demo) -->
+  <aside id="leaderboardOverlay" class="overlay" hidden aria-hidden="true" aria-labelledby="lbTitle">
+    <header class="overlay-header">
+      <h2 id="lbTitle">Leaderboard</h2>
+      <button id="closeOverlay" class="icon-btn" aria-label="Close">✕</button>
+    </header>
+    <nav class="tabs" role="tablist" aria-label="Leaderboards">
+      <button id="tab-batting" class="tab active" role="tab" aria-selected="true" data-kind="batting">Batting</button>
+      <button id="tab-bowling" class="tab" role="tab" aria-selected="false" data-kind="bowling">Bowling</button>
+    </nav>
+    <div id="tabpanel" class="tab-panel" role="tabpanel" tabindex="0"></div>
+  </aside>
+  <div id="backdrop" class="backdrop" hidden></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+  <script src="db.js?v=landing2"></script>
+  <script src="venue.js?v=landing2"></script>
+  <script src="tilt-toggle.js?v=landing2"></script>
+  <script src="map.js?v=landing2"></script>
+</body>
+</html>
