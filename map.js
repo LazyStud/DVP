@@ -1225,10 +1225,9 @@
     const container = document.getElementById('flowCountryItems');
     if (!btn || !container) return;
     const total = container.querySelectorAll('input[type="checkbox"]').length;
-    let label = 'All countries';
-    if (selectedFlowCountries === null) label = 'All countries';
-    else if (selectedFlowCountries.size === 0) label = 'Filter origins: None';
-    else label = `Filter origins: ${selectedFlowCountries.size} selected`;
+    const label = selectedFlowCountries === null ? 'All countries'
+      : selectedFlowCountries.size === 0 ? 'Filter origins: None'
+      : `Filter origins: ${selectedFlowCountries.size} selected`;
     btn.textContent = label;
   }
 
@@ -1814,7 +1813,7 @@
   function pickCoord(row, keys){
     for (const k of keys) {
       if (!k) continue;
-      if (row.hasOwnProperty(k)) return +row[k];
+      if (Object.hasOwn(row, k)) return +row[k];
       const hit = Object.keys(row).find(kk => kk.toLowerCase() === String(k).toLowerCase());
       if (hit) return +row[hit];
     }
@@ -1876,8 +1875,8 @@
       return (rows || []).map(r => {
         // ensure lat/lon keys exist in consistent names
         const out = Object.assign({}, r);
-        if (schema.lonCol && !out.longitude && out.hasOwnProperty(schema.lonCol)) out.longitude = out[schema.lonCol];
-        if (schema.latCol && !out.latitude && out.hasOwnProperty(schema.latCol)) out.latitude = out[schema.latCol];
+        if (schema.lonCol && !out.longitude && Object.hasOwn(out, schema.lonCol)) out.longitude = out[schema.lonCol];
+        if (schema.latCol && !out.latitude && Object.hasOwn(out, schema.latCol)) out.latitude = out[schema.latCol];
         return out;
       });
     }catch(e){ if (DEBUG) console.warn('loadVenuesForCountry failed', e); return []; }
