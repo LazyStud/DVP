@@ -886,50 +886,35 @@
   async function computeFlows(yearMin, yearMax){
     try{
       let rows = [];
-      // Prefer loading the lightweight CSV, but handle network failures gracefully.
-        try {
-        // Fetch the matches CSV from the repository's raw GitHub URL (avoid local file CORS issues)
-        const resp = await fetch("https://raw.githubusercontent.com/DushyantPathania/DVP-p2/main/data/csvs/matches.csv");
-        if (resp && resp.ok) {
-          const txt = await resp.text();
-          rows = d3.csvParse(txt);
+      try {
+        const tables = await loadMatchTables();
+        if (tables && tables.length) {
+          const unionParts = tables.map(t => {
+            const m = t.map;
+            const neutralExpr = m.neutralCol ? `COALESCE(${m.neutralCol},0)` : "0";
+            const resultExpr  = m.resultCol  ? `COALESCE(${m.resultCol},'')`  : "''";
+            const formatExpr  = m.formatCol ? `COALESCE(${m.formatCol},'')` : "''";
+            return `
+              SELECT
+                ${m.winnerCol} AS winner,
+                ${m.hostCol}   AS venue_country,
+                ${m.dateCol}   AS date,
+                ${neutralExpr} AS neutral_venue,
+                ${resultExpr}  AS result_type,
+                ${formatExpr}  AS format,
+                NULL AS team1, NULL AS team2
+              FROM ${t.name}
+            `;
+          });
+          const unionSQL = unionParts.join(' UNION ALL ');
+          rows = DB.queryAll(`SELECT * FROM (${unionSQL}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];
         } else {
-          throw new Error(`CSV fetch failed: ${resp ? resp.status : 'no response'}`);
-        }
-      } catch (fetchErr) {
-        console.warn('computeFlows: CSV load failed, attempting DB fallback', fetchErr);
-        // Fallback: try to read matches-like tables from the DB (if available)
-        try {
-          const tables = await loadMatchTables();
-          if (tables && tables.length) {
-            const unionParts = tables.map(t => {
-              const m = t.map;
-              const neutralExpr = m.neutralCol ? `COALESCE(${m.neutralCol},0)` : "0";
-              const resultExpr  = m.resultCol  ? `COALESCE(${m.resultCol},'')`  : "''";
-              const formatExpr  = m.formatCol ? `COALESCE(${m.formatCol},'')` : "''";
-              return `
-                SELECT
-                  ${m.winnerCol} AS winner,
-                  ${m.hostCol}   AS venue_country,
-                  ${m.dateCol}   AS date,
-                  ${neutralExpr} AS neutral_venue,
-                  ${resultExpr}  AS result_type,
-                  ${formatExpr}  AS format,
-                  NULL AS team1, NULL AS team2
-                FROM ${t.name}
-              `;
-            });
-            const unionSQL = unionParts.join(' UNION ALL ');
-            // Query DB with year filter to avoid transferring large amounts of rows
-            rows = DB.queryAll(`SELECT * FROM (${unionSQL}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];
-          } else {
-            console.warn('computeFlows: No matches-like tables found in DB to fallback to');
-            rows = [];
-          }
-        } catch (dbErr) {
-          console.warn('computeFlows: DB fallback failed', dbErr);
+          console.warn('computeFlows: No matches-like tables found in DB');
           rows = [];
         }
+      } catch (dbErr) {
+        console.warn('computeFlows: DB query failed', dbErr);
+        rows = [];
       }
       const pairs = new Map(); // key origin|host -> count
       const hostTotals = new Map(); // host -> count
