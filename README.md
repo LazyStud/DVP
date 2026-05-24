@@ -122,6 +122,7 @@ DVP/
 - **IndexedDB versioning.** The DB cache key embeds a version string; bumping it in `db.js` forces every client to re-download on the next visit.
 - **Worker-based aggregation.** Heavy per-venue queries (multi-format, multi-year) run in `venue-worker.js` so the globe keeps spinning at 60 fps while the radar populates.
 - **Accessible UI.** ARIA roles, live regions and keyboard handlers on the slider, tabs, and inline leaderboard launcher.
+- **Debug logging.** All `console.warn` / `console.info` calls are gated behind a `DEBUG` flag. Append `?debug=1` to the URL (e.g. `http://localhost:8000/index.html?debug=1`) to enable them; omit it for a clean console.
 
 ---
 

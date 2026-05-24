@@ -26,10 +26,10 @@
         if (msg.error) p.reject(new Error(msg.error)); else p.resolve(msg.result);
       };
       _venueWorker.onerror = (e) => {
-        console.warn('venue worker error', e);
+        if (DEBUG) console.warn('venue worker error', e);
       };
     }catch(e){
-      console.warn('Failed to create venue worker', e);
+      if (DEBUG) console.warn('Failed to create venue worker', e);
       _venueWorker = null;
     }
   }
@@ -313,7 +313,7 @@
         const rows = panel._lastRows || [];
         const yr = panel._lastYrRange || currentYearRange;
         drawEvolutionHeatmap(rows, yr, fmt);
-      }catch(e){ console.warn('Failed to re-render evolution heatmap for format', fmt, e); }
+      }catch(e){ if (DEBUG) console.warn('Failed to re-render evolution heatmap for format', fmt, e); }
     });
   }
 
@@ -594,7 +594,7 @@
       try {
         rows = DB.queryAll(sql, sqlParams) || [];
       } catch (e) {
-        console.warn('venue_stats query failed', e);
+        if (DEBUG) console.warn('venue_stats query failed', e);
         rows = [];
       }
 
@@ -684,14 +684,14 @@
           // keep innings-by-no available for merging later
           try { panel._fallback_innings = innMap; } catch(e) { panel._fallback_innings = null; }
         } catch (fbErr) {
-          console.warn('fallback per-innings aggregation failed', fbErr);
+          if (DEBUG) console.warn('fallback per-innings aggregation failed', fbErr);
         }
       }
 
   // store last fetched rows so Evolution controls can re-render without re-query
   try { panel._lastRows = rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){}
   // Draw evolution heatmap from raw rows for the selected yrRange and format
-  try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { console.warn('evolution draw failed', e); }
+  try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { if (DEBUG) console.warn('evolution draw failed', e); }
 
       // Group rows by normalized format key and aggregate sums
       const byFormat = { test: null, odi: null, t20: null };
@@ -792,7 +792,7 @@
       }
       return;
     } catch (e) {
-      console.warn('fetchAndRender venue metrics failed', e);
+      if (DEBUG) console.warn('fetchAndRender venue metrics failed', e);
       const heatErr = panel.querySelector('.venue-heat');
       if (heatErr) heatErr.innerHTML = `<div style="color:var(--muted);font-size:.92rem">No metrics available.</div>`;
       svgEl._metrics = null; drawRadar(svgEl);
@@ -953,7 +953,7 @@
       });
 
       // Removed bottom SVG legend: per-metric HTML legends are shown above the heatmap
-    }catch(e){ console.warn('drawEvolutionHeatmap failed', e); }
+    }catch(e){ if (DEBUG) console.warn('drawEvolutionHeatmap failed', e); }
   }
 
   /* API */
@@ -1012,7 +1012,7 @@
         try { if (legendEl) legendEl.classList.remove('hidden'); } catch(_){}
       } catch (e) { /* non-fatal */ }
     } catch (e) {
-      console.warn('VenueWindow.open: UI show failed', e);
+      if (DEBUG) console.warn('VenueWindow.open: UI show failed', e);
     }
 
     if (rsvg) {
@@ -1036,7 +1036,7 @@
         try {
           await fetchAndRender(d, { min, max }, fmt);
         } catch (err) {
-          console.warn('fetchAndRender failed in VenueWindow.open', err);
+          if (DEBUG) console.warn('fetchAndRender failed in VenueWindow.open', err);
         } finally {
           try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(e){}
         }

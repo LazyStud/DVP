@@ -204,7 +204,7 @@
       // wire button
       const btn = tooltipEl.querySelector('.map-tooltip-open');
       if (btn) btn.addEventListener('click', () => { try{ window.VenueWindow.open(d); hideTooltip(); } catch(e){} });
-    }catch(e){ console.warn('showVenueTooltip failed', e); }
+    }catch(e){ if (DEBUG) console.warn('showVenueTooltip failed', e); }
   }
 
   // Show country tooltip using precomputed choroByCountry and best-known venues
@@ -235,7 +235,7 @@
       }catch(e){ /* ignore */ }
 
       showTooltipAt(ev.clientX, ev.clientY, html);
-    }catch(e){ console.warn('showCountryTooltip failed', e); }
+    }catch(e){ if (DEBUG) console.warn('showCountryTooltip failed', e); }
   }
 
   // small HTML escape
@@ -454,7 +454,7 @@
       const tnames = DB.queryAll("SELECT name FROM sqlite_master WHERE type='table'");
       // removed verbose diagnostic logging
     } catch (e) {
-      console.warn("[DB] table introspection failed:", e);
+      if (DEBUG) console.warn("[DB] table introspection failed:", e);
     }
 
     const colsRows = await DB.queryAll("PRAGMA table_info(venues)");
@@ -504,7 +504,7 @@
         event.stopPropagation();
         stopSpin();
         // open the venue popup (it will dispatch 'venuewindow:open' when ready)
-        try { VenueWindow.open(d); } catch (e) { hideVenueLoading(); console.warn('VenueWindow.open failed', e); }
+        try { VenueWindow.open(d); } catch (e) { hideVenueLoading(); if (DEBUG) console.warn('VenueWindow.open failed', e); }
       });
 
     // replace simple <title> with richer HTML tooltip handlers
@@ -565,7 +565,7 @@
     let rows = [];
 
     if (!tables.length) {
-      console.warn("[CHORO] No matches-like table found. Need (winner, date, venue_country/host/country).");
+      if (DEBUG) console.warn("[CHORO] No matches-like table found. Need (winner, date, venue_country/host/country).");
     } else {
       try {
         const unionParts = tables.map(t => {
@@ -592,7 +592,7 @@
           [yearMin, yearMax]
         );
       } catch (e) {
-        console.warn("[CHORO] Query failed:", e);
+        if (DEBUG) console.warn("[CHORO] Query failed:", e);
         rows = [];
       }
     }
@@ -662,7 +662,7 @@
       drawFlowArcs();
       drawBubbles();
       updateBubbleLegend();
-    } catch (e) { console.warn('flow/bubble computation failed', e); }
+    } catch (e) { if (DEBUG) console.warn('flow/bubble computation failed', e); }
     // removed verbose diagnostic logging
   }
 
@@ -908,11 +908,11 @@
           const unionSQL = unionParts.join(' UNION ALL ');
           rows = DB.queryAll(`SELECT * FROM (${unionSQL}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];
         } else {
-          console.warn('computeFlows: No matches-like tables found in DB');
+          if (DEBUG) console.warn('computeFlows: No matches-like tables found in DB');
           rows = [];
         }
       } catch (dbErr) {
-        console.warn('computeFlows: DB query failed', dbErr);
+        if (DEBUG) console.warn('computeFlows: DB query failed', dbErr);
         rows = [];
       }
       const pairs = new Map(); // key origin|host -> count
@@ -992,8 +992,8 @@
               // Diagnostic: log how many origin colors were assigned and show a small sample
               // removed verbose diagnostic logging
               try { /* noop: skipped diagnostics */ } catch(e) { /* ignore diag failures */ }
-          } catch(e) { console.warn('flow color mapping failed', e); }
-    }catch(e){ console.warn('computeFlows failed', e); flowData = []; bubbleData = []; }
+          } catch(e) { if (DEBUG) console.warn('flow color mapping failed', e); }
+    }catch(e){ if (DEBUG) console.warn('computeFlows failed', e); flowData = []; bubbleData = []; }
   }
 
   // small drawing helpers
@@ -1270,9 +1270,9 @@
               const startK = globeZoomK || 1;
               const kInterp = d3.interpolateNumber(startK, desiredK);
               d3.transition().duration(600).tween('zoomk', () => t => { globeZoomK = kInterp(t); projection.scale(baseScale * globeZoomK); redrawAll(); }).on('end', resolve);
-            }catch(e){ console.warn('post-rotate focus adjustments failed', e); resolve(); }
+            }catch(e){ if (DEBUG) console.warn('post-rotate focus adjustments failed', e); resolve(); }
           });
-      }catch(e){ console.warn('focusGlobeOn failed', e); resolve(); }
+      }catch(e){ if (DEBUG) console.warn('focusGlobeOn failed', e); resolve(); }
     });
   }
 
@@ -1297,7 +1297,7 @@
         const translate = [width / 2 - scale * x, height / 2 - scale * y];
         const t = d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale);
         svg.transition().duration(700).call(zoomMap.transform, t).on('end', resolve);
-      }catch(e){ console.warn('focusMapOn failed', e); resolve(); }
+      }catch(e){ if (DEBUG) console.warn('focusMapOn failed', e); resolve(); }
     });
   }
 
@@ -1642,7 +1642,7 @@
         fifties: +r.fifties||0,
         best: r.best
       }));
-    }catch(e){ console.warn('batting leaderboard SQL failed', e); return null; }
+    }catch(e){ if (DEBUG) console.warn('batting leaderboard SQL failed', e); return null; }
   }
 
   // Attempt to build bowling leaderboard from DB; falls back to demo
@@ -1701,7 +1701,7 @@
         });
       }
       return out;
-    }catch(e){ console.warn('bowling leaderboard SQL failed', e); return null; }
+    }catch(e){ if (DEBUG) console.warn('bowling leaderboard SQL failed', e); return null; }
   }
 
   // Render leaderboard into overlay; supports format filter and sorting via delegated header click
@@ -1719,7 +1719,7 @@
         const { min, max } = yearRange || { min: YEAR_MIN, max: YEAR_MAX };
         if (kind === 'batting') rows = await getBattingLeaderboard(min, max, fmt) || battingData.slice();
         else rows = await getBowlingLeaderboard(min, max, fmt) || bowlingData.slice();
-      } catch (e) { console.warn('leaderboard query failed', e); rows = (kind === 'batting' ? battingData.slice() : bowlingData.slice()); }
+      } catch (e) { if (DEBUG) console.warn('leaderboard query failed', e); rows = (kind === 'batting' ? battingData.slice() : bowlingData.slice()); }
       // normalize fallback rows to expected fields
       rows = rows.map(r => ({
         matches: r.matches || 0,
@@ -1811,7 +1811,7 @@
     try {
       const rows = await loadVenuesForCountry(name);
       addVenues(rows); drawVenues();
-    } catch(e){ console.warn("Failed loading venues for", name, e); }
+    } catch(e){ if (DEBUG) console.warn("Failed loading venues for", name, e); }
     finally { toastHide(); }
   }
   function pickCoord(row, keys){
@@ -1833,7 +1833,7 @@
   // Pre-highlight countries having venues
   venuesAll = []; venueIndex.clear();
   try { venueCountrySet = await loadVenueCountries(); applyCountryHighlight(); }
-  catch(e){ console.warn("Could not derive venue countries from DB:", e); }
+  catch(e){ if (DEBUG) console.warn("Could not derive venue countries from DB:", e); }
 
   // Interactions
   gRoot.call(dragGlobe);
@@ -1864,7 +1864,7 @@
       const s = new Set();
       for (const r of rows){ if (r && r.country) s.add(canonicalMapName(r.country)); }
       return s;
-    }catch(e){ console.warn('loadVenueCountries failed', e); return new Set(); }
+    }catch(e){ if (DEBUG) console.warn('loadVenueCountries failed', e); return new Set(); }
   }
 
   // Load venue rows for a canonical country name. Uses a case-insensitive LIKE match
@@ -1883,7 +1883,7 @@
         if (schema.latCol && !out.latitude && out.hasOwnProperty(schema.latCol)) out.latitude = out[schema.latCol];
         return out;
       });
-    }catch(e){ console.warn('loadVenuesForCountry failed', e); return []; }
+    }catch(e){ if (DEBUG) console.warn('loadVenuesForCountry failed', e); return []; }
   }
 
   // landing → full view
@@ -1906,7 +1906,7 @@
   const YEAR_DEBOUNCE_MS = 300;
   window.addEventListener("yearrange:change", (ev) => {
     const { min, max } = ev.detail || {};
-    console.info("[SLIDER] requested range:", min, max);
+    if (DEBUG) console.info("[SLIDER] requested range:", min, max);
 
     // Keep the in-memory range up-to-date for other UI pieces (fast)
     yearRange = { min, max };
@@ -1920,7 +1920,7 @@
         // Optionally show a small loading toast while recomputing
         try { toast('Updating visuals…'); } catch(e){}
         await computeChoropleth(min, max);
-        try { await computeFlows(min, max); drawFlowArcs(); drawBubbles(); updateBubbleLegend(); } catch(e){ console.warn('flow/bubble recompute failed', e); }
+        try { await computeFlows(min, max); drawFlowArcs(); drawBubbles(); updateBubbleLegend(); } catch(e){ if (DEBUG) console.warn('flow/bubble recompute failed', e); }
 
         // If the leaderboard overlay is open, refresh it so it respects the new year range
         try {
@@ -1928,8 +1928,8 @@
             const active = tabBtns.find(b => b.classList.contains('active'))?.dataset.kind || 'batting';
             setTimeout(() => { renderLeaderboard(active); }, 20);
           }
-        } catch (e) { console.warn('yearrange:change re-render failed', e); }
-      } catch (e) { console.warn('yearrange change handler failed', e); }
+        } catch (e) { if (DEBUG) console.warn('yearrange:change re-render failed', e); }
+      } catch (e) { if (DEBUG) console.warn('yearrange change handler failed', e); }
       finally { try { toastHide(); } catch(e){} }
     }, YEAR_DEBOUNCE_MS);
   });
