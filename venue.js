@@ -209,7 +209,7 @@
     const FORMATS = [
       { key: 'test', label: 'Test', color: '#e6cf9a' },
       { key: 'odi',  label: 'ODI',  color: '#2dd4bf' },
-      { key: 't20i', label: 'T20I', color: '#a78bfa' }
+      { key: 't20',  label: 'T20I', color: '#a78bfa' }
     ];
     const itemsWrap = legend.querySelector('.venue-legend-items');
     FORMATS.forEach(f => {
@@ -444,7 +444,7 @@
     const FORMATS = [
       { key: 'test', color: '#e6cf9a' },
       { key: 'odi',  color: '#2dd4bf' },
-      { key: 't20i', color: '#a78bfa' }
+      { key: 't20',  color: '#a78bfa' }
     ];
 
     const line = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
@@ -537,8 +537,7 @@
 
   // fetch aggregated metrics for a venue + year range + format and render radar + textual summaries
   async function fetchAndRender(datum, yrRange = {min:2000,max:2025}, format = 'all'){
-    // normalize format aliases so modules use a consistent key for SQL filtering
-    if (format === 't20i') format = 't20';
+    format = Formats.normalizeFormat(format);
     const svgEl = panel.querySelector('svg[data-role="radar"]');
     if (!svgEl) return;
     const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
@@ -695,8 +694,8 @@
   try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { console.warn('evolution draw failed', e); }
 
       // Group rows by normalized format key and aggregate sums
-      const byFormat = { test: null, odi: null, t20i: null };
-      const normFormat = (s) => (String(s||'').toLowerCase().includes('test') ? 'test' : (String(s||'').toLowerCase().includes('odi') ? 'odi' : (String(s||'').toLowerCase().includes('t20') || String(s||'').toLowerCase().includes('twenty') ? 't20i' : 'other')));
+      const byFormat = { test: null, odi: null, t20: null };
+      const normFormat = (s) => { const k = Formats.normalizeFormat(s); return k === 'all' ? 'other' : k; };
 
       const groups = {};
       for (const r of rows) {
@@ -730,7 +729,7 @@
         if (r.bowling_sr != null) { g.bowling_sr_sum += Number(r.bowling_sr) * w; g.bowling_sr_w += w; }
       }
 
-      ['test','odi','t20i'].forEach(fmt => {
+      ['test','odi','t20'].forEach(fmt => {
         const g = groups[fmt];
         if (!g) { byFormat[fmt] = null; return; }
         // Use only the explicit metric columns from `venue_stats` (weighted by matches)
@@ -760,7 +759,7 @@
         const fb = panel._fallback_innings || null;
         if (fb) {
           Object.keys(fb).forEach(k => {
-            const norm = (k || '').toLowerCase().includes('test') ? 'test' : (k || '').toLowerCase().includes('odi') ? 'odi' : ((k || '').toLowerCase().includes('t20') ? 't20i' : null);
+            const _nk = Formats.normalizeFormat(k); const norm = _nk === 'all' ? null : _nk;
             if (!norm) return;
             if (byFormat[norm]) byFormat[norm].innings_by_no = (fb[k] || []).map(x => ({ innings_no: x.innings_no, avg_runs: Number(x.avg_runs || 0), count: Number(x.cnt || 0) }));
           });
@@ -780,8 +779,8 @@
         const totalMatches = Object.values(byFormat).reduce((s, m) => s + (m && m.matches_count ? m.matches_count : 0), 0);
         heat.innerHTML = `<div style="font-size:.95rem;color:var(--text)"><div style="margin-bottom:6px"><strong>Total matches (selected years):</strong> ${totalMatches}</div></div>`;
         const list = document.createElement('div'); list.style.display = 'grid'; list.style.gap = '6px'; list.style.marginTop = '6px';
-        const formatOrder = ['test','odi','t20i'];
-        const colors = { test: '#e6cf9a', odi: '#2dd4bf', t20i: '#a78bfa' };
+        const formatOrder = ['test','odi','t20'];
+        const colors = { test: '#e6cf9a', odi: '#2dd4bf', t20: '#a78bfa' };
         formatOrder.forEach(k => {
           const m = byFormat[k];
           const row = document.createElement('div');
@@ -801,7 +800,7 @@
     }
   }
 
-  // Draw evolution heatmap: rows = metrics, cols = years. Accepts optional format ('all','test','odi','t20i')
+  // Draw evolution heatmap: rows = metrics, cols = years. Accepts optional format ('all','test','odi','t20')
   function drawEvolutionHeatmap(rows, yrRange, format = 'all'){
     try{
       const svgEl = panel.querySelector('svg[data-role="evo-heatmap"]');
@@ -827,8 +826,7 @@
       // Filter rows by selected format (if requested)
       const usedRows = (format && format !== 'all') ? rows.filter(r => {
         const rf = String(r.format||'').toLowerCase();
-        // accept both 't20' and 't20i' aliases
-        if (format === 't20i' || format === 't20') return rf.includes('t20');
+        if (format === 't20') return rf.includes('t20');
         return rf.includes(String(format||'').toLowerCase());
       }) : rows;
 

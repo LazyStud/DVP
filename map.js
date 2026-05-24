@@ -626,9 +626,8 @@
       rec.matches += 1; if (win) rec.homeWins += 1;
 
       // format-specific increment
-      const fmtRaw = String(r.format || "").toLowerCase().trim();
-      const fmt = (fmtRaw.includes('odi')) ? 'odi' : (fmtRaw.includes('t20') || fmtRaw.includes('twenty')) ? 't20' : (fmtRaw.includes('test') ? 'test' : null);
-      if (fmt && rec.formats[fmt]){
+      const fmt = Formats.normalizeFormat(r.format);
+      if (fmt !== 'all' && rec.formats[fmt]){
         rec.formats[fmt].matches += 1;
         if (win) rec.formats[fmt].homeWins += 1;
       }
@@ -1611,9 +1610,9 @@
   // Attempt to build batting leaderboard from DB; falls back to demo
   async function getBattingLeaderboard(minYear, maxYear, format='all', limit=50){
     try{
-      // join matches to filter by match date (year) and prefer format from matches when present
-      const fmtCond = (format && format !== 'all') ? `AND LOWER(COALESCE(m.format, bi.format, '')) LIKE ?` : '';
-      const params = [minYear, maxYear]; if (fmtCond) params.push(`%${format}%`);
+      const patterns = Formats.formatLikePatterns(format);
+      const fmtCond = patterns.length ? `AND (${patterns.map(() => `LOWER(COALESCE(m.format, bi.format, '')) LIKE ?`).join(' OR ')})` : '';
+      const params = [minYear, maxYear, ...patterns];
       const rows = await DB.queryAll(`
         SELECT bi.batter AS player, bi.team AS team,
                COUNT(DISTINCT bi.match_id) AS matches,
@@ -1649,9 +1648,9 @@
   // Attempt to build bowling leaderboard from DB; falls back to demo
   async function getBowlingLeaderboard(minYear, maxYear, format='all', limit=50){
     try{
-      // join matches for date filtering and format resolution
-      const fmtCond = (format && format !== 'all') ? `AND LOWER(COALESCE(m.format, bi.format, '')) LIKE ?` : '';
-      const params = [minYear, maxYear]; if (fmtCond) params.push(`%${format}%`);
+      const patterns = Formats.formatLikePatterns(format);
+      const fmtCond = patterns.length ? `AND (${patterns.map(() => `LOWER(COALESCE(m.format, bi.format, '')) LIKE ?`).join(' OR ')})` : '';
+      const params = [minYear, maxYear, ...patterns];
       const rows = await DB.queryAll(`
         SELECT bi.bowler AS player, bi.team AS team,
                COUNT(DISTINCT bi.match_id) AS matches,
@@ -1675,9 +1674,10 @@
         try{
           let br;
           if (fmtCond) {
+            const fmtLike = patterns.map(() => `LOWER(COALESCE(m.format, bi.format, '')) LIKE ?`).join(' OR ');
             br = await DB.queryAll(
-              `SELECT MIN(CAST(bi.runs_conceded AS INT)) AS runs FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE LOWER(COALESCE(m.format, bi.format, '')) LIKE ? AND bi.bowler = ? AND CAST(bi.wickets AS INT) = ? LIMIT 1`,
-              [`%${format}%`, r.player, r.best_wkts]
+              `SELECT MIN(CAST(bi.runs_conceded AS INT)) AS runs FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE (${fmtLike}) AND bi.bowler = ? AND CAST(bi.wickets AS INT) = ? LIMIT 1`,
+              [...patterns, r.player, r.best_wkts]
             );
           } else {
             br = await DB.queryAll(

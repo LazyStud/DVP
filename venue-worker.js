@@ -4,6 +4,7 @@
 // responses: { id, result: { byFormat }, error }
 
 importScripts('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js');
+importScripts('./formats.js');
 
 let SQLw = null, dbw = null;
 
@@ -59,15 +60,8 @@ function tableHasColumn(tableName, colName){
   }catch(e){ return false; }
 }
 
-function formatPatterns(fmtKey){
-  if (fmtKey === 'test') return ['%test%'];
-  if (fmtKey === 'odi') return ['%odi%', '%one%day%', '%one-day%', '%one day%'];
-  if (fmtKey === 't20i') return ['%t20i%', '%t20%', '%twenty%', '%twenty20%'];
-  return [`%${fmtKey}%`];
-}
-
 async function computeForFormat(aliases, yrRange, fmtKey){
-  const pf = formatPatterns(fmtKey);
+  const pf = Formats.formatLikePatterns(fmtKey);
   const battingHasFormat = tableHasColumn('batting_innings','format');
   const bowlingHasFormat = tableHasColumn('bowling_innings','format');
 
@@ -148,13 +142,9 @@ self.onmessage = async (ev) => {
       const aliases = Array.isArray(msg.aliases) ? msg.aliases : [];
       const yrRange = msg.yrRange || { min: 2000, max: 2025 };
       const format = msg.format || 'all';
-      const FORMATS = ['test','odi','t20i'];
+      const FORMATS = ['test','odi','t20'];
       const byFormat = {};
       for (const f of FORMATS){
-        // if top-level format filter is set, skip non-matching formats
-        if (format && format !== 'all' && !f.includes(format) && !(format === 't20i' && f === 't20i')) {
-          // allow explicit request
-        }
         byFormat[f] = await computeForFormat(aliases, yrRange, f);
       }
       self.postMessage({ id, result: { byFormat } });
