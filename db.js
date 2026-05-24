@@ -5,6 +5,8 @@ let SQL, db;
 
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
+function reportError(scope, err) { if (DEBUG) console.warn('[' + scope + ']', err); }
+
 const IDB_NAME  = "cricket-sqlite-cache";
 const IDB_STORE = "files";
 

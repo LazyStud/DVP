@@ -162,11 +162,11 @@
       const insBtn = instructionBox.querySelector('#insLeaderboardBtn');
       if (insBtn) {
         // ensure only one handler attached
-        insBtn.addEventListener('click', (ev) => { ev.stopPropagation(); try{ if (btnMenu) btnMenu.click(); } catch(e){} });
-        insBtn.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); try{ if (btnMenu) btnMenu.click(); } catch(e){} } });
+        insBtn.addEventListener('click', (ev) => { ev.stopPropagation(); try{ if (btnMenu) btnMenu.click(); } catch(e){ reportError('nonfatal', e); } });
+        insBtn.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); try{ if (btnMenu) btnMenu.click(); } catch(e){ reportError('nonfatal', e); } } });
         insBtn.style.cursor = 'pointer';
       }
-    }catch(e){ /* non-fatal */ }
+    }catch(e){ reportError('nonfatal', e); }
   }
 
   // Show venue tooltip with aggregated stats (async DB query). Accepts mouse event and venue row.
@@ -203,7 +203,7 @@
 
       // wire button
       const btn = tooltipEl.querySelector('.map-tooltip-open');
-      if (btn) btn.addEventListener('click', () => { try{ window.VenueWindow.open(d); hideTooltip(); } catch(e){} });
+      if (btn) btn.addEventListener('click', () => { try{ window.VenueWindow.open(d); hideTooltip(); } catch(e){ reportError('nonfatal', e); } });
     }catch(e){ if (DEBUG) console.warn('showVenueTooltip failed', e); }
   }
 
@@ -232,7 +232,7 @@
           const top = venues.slice(0,3).map(v => escapeHtml(v.venue || v.name || '—'));
           html += `<div style="margin-top:8px;color:#bcd;font-size:0.86rem">Notable venues: <strong style="color:#fff">${top.join(', ')}</strong></div>`;
         }
-      }catch(e){ /* ignore */ }
+      }catch(e){ reportError('nonfatal', e); }
 
       showTooltipAt(ev.clientX, ev.clientY, html);
     }catch(e){ if (DEBUG) console.warn('showCountryTooltip failed', e); }
@@ -368,8 +368,8 @@
       .data(countries, d => d.id)
       .join("path")
       .attr("class","country")
-      .on("mouseenter", (event, d) => { hoveredId = d.id; d3.select(event.currentTarget).raise(); updateHoverTransform(); try { showCountryTooltip(event, d); } catch(e){} })
-      .on("mouseleave", (event, d) => { hoveredId = null; updateHoverTransform(); try { hideTooltip(); } catch(e){} })
+      .on("mouseenter", (event, d) => { hoveredId = d.id; d3.select(event.currentTarget).raise(); updateHoverTransform(); try { showCountryTooltip(event, d); } catch(e){ reportError('nonfatal', e); } })
+      .on("mouseleave", (event, d) => { hoveredId = null; updateHoverTransform(); try { hideTooltip(); } catch(e){ reportError('nonfatal', e); } })
       .on("click", (event, d) => handleCountryClick(d))
       .attr("d", path);
 
@@ -440,7 +440,7 @@
     try {
       if (_venueLoadingState.timeoutId) { clearTimeout(_venueLoadingState.timeoutId); _venueLoadingState.timeoutId = null; }
       if (_venueLoadingState.onOpen) { window.removeEventListener('venuewindow:open', _venueLoadingState.onOpen); _venueLoadingState.onOpen = null; }
-    } catch(e) { /* ignore */ }
+    } catch(e){ reportError('nonfatal', e); }
   }
 
   /* ------------------------- Schema Introspection -------------------------- */
@@ -497,7 +497,7 @@
       .attr("opacity", 0.95)
       // show loader immediately on pointerdown so users get instant feedback
       .on("pointerdown", (event, d) => {
-        try { event.stopPropagation(); } catch(e){}
+        try { event.stopPropagation(); } catch(e){ reportError('nonfatal', e); }
         stopSpin();
       })
       .on("click", (event, d) => {
@@ -509,9 +509,9 @@
 
     // replace simple <title> with richer HTML tooltip handlers
     enter
-      .on('pointerenter', (event, d) => { try { showVenueTooltip(event, d); } catch(e){} })
-      .on('pointermove', (event, d) => { try { moveTooltipToEvent(event); } catch(e){} })
-      .on('pointerleave', (event, d) => { try { hideTooltip(); } catch(e){} });
+      .on('pointerenter', (event, d) => { try { showVenueTooltip(event, d); } catch(e){ reportError('nonfatal', e); } })
+      .on('pointermove', (event, d) => { try { moveTooltipToEvent(event); } catch(e){ reportError('nonfatal', e); } })
+      .on('pointerleave', (event, d) => { try { hideTooltip(); } catch(e){ reportError('nonfatal', e); } });
 
     updateVenuesPosition();
   }
@@ -691,7 +691,7 @@
     // Do not render spikes in 2D map mode — spikes are a 3D/globe visual.
     if (mode === 'map') {
       // ensure any previously-created spikes are removed/hidden when switching to map
-      try { gSpikes.selectAll('*').remove(); } catch(e) {}
+      try { gSpikes.selectAll('*').remove(); } catch(e){ reportError('nonfatal', e); }
       return;
     }
     const data = [];
@@ -748,7 +748,7 @@
     svgL.selectAll('*').remove();
     const w = +svgL.attr('width') || 160, h = +svgL.attr('height') || 72;
     // accessible label for screen readers
-    try { svgL.attr('role', 'img').attr('aria-label', `Spike legend — height = matches hosted`); } catch(e){}
+    try { svgL.attr('role', 'img').attr('aria-label', `Spike legend — height = matches hosted`); } catch(e){ reportError('nonfatal', e); }
 
     // Prepare ticks (small, mid, max) and layout
     const ticks = [Math.max(1, Math.round(maxMatches/4)), Math.max(1, Math.round(maxMatches/2)), Math.max(1, Math.round(maxMatches))];
@@ -821,7 +821,7 @@
     svgL.selectAll('*').remove();
     const w = +svgL.attr('width') || 160, h = +svgL.attr('height') || 56;
     // accessibility
-    try { svgL.attr('role','img').attr('aria-label', `Bubble size legend — ${bubbleMetric}`); } catch(e){}
+    try { svgL.attr('role','img').attr('aria-label', `Bubble size legend — ${bubbleMetric}`); } catch(e){ reportError('nonfatal', e); }
 
     const ticks = [Math.max(1, Math.round(maxMatches/4)), Math.max(1, Math.round(maxMatches/2)), Math.max(1, Math.round(maxMatches))];
     // compute radii and layout
@@ -987,11 +987,10 @@
             });
               // If the flow country UI exists, populate it
               if (document && document.getElementById) {
-                try { renderFlowFilterUI(); } catch(e) { /* ignore UI population errors */ }
+                try { renderFlowFilterUI(); } catch(e){ reportError('nonfatal', e); }
               }
               // Diagnostic: log how many origin colors were assigned and show a small sample
               // removed verbose diagnostic logging
-              try { /* noop: skipped diagnostics */ } catch(e) { /* ignore diag failures */ }
           } catch(e) { if (DEBUG) console.warn('flow color mapping failed', e); }
     }catch(e){ if (DEBUG) console.warn('computeFlows failed', e); flowData = []; bubbleData = []; }
   }
@@ -1028,18 +1027,18 @@
         if (mode === 'globe') stopSpin();
         const html = `<div style="font-weight:600">${escapeHtml(d.originKey)} → ${escapeHtml(d.hostKey)}</div><div style="font-size:0.9rem;color:#dfe6ea">Matches: <strong>${d.matches}</strong></div>`;
         showTooltipAt(ev.clientX, ev.clientY, html);
-      } catch(e){}
+      } catch(e){ reportError('nonfatal', e); }
     })
-    .on('pointermove', (ev) => { try { moveTooltipToEvent(ev); } catch(e){} })
+    .on('pointermove', (ev) => { try { moveTooltipToEvent(ev); } catch(e){ reportError('nonfatal', e); } })
     .on('pointerleave', () => {
-      try { hideTooltip(); } catch(e){}
+      try { hideTooltip(); } catch(e){ reportError('nonfatal', e); }
       try {
         // resume spin if appropriate when pointer leaves the arc
         if (mode === 'globe' && !isDragging && !countryFocused) startSpin();
-      } catch(e){}
+      } catch(e){ reportError('nonfatal', e); }
     })
     .on('click', (ev,d) => {
-      try { ev.stopPropagation(); const found = countries.find(f => canonicalMapName(f.properties?.name||'') === d.hostKey); if (found) { handleCountryClick(found); } } catch(e){}
+      try { ev.stopPropagation(); const found = countries.find(f => canonicalMapName(f.properties?.name||'') === d.hostKey); if (found) { handleCountryClick(found); } } catch(e){ reportError('nonfatal', e); }
     });
     enter.merge(sel).each(function(d){
       // build GeoJSON LineString sampling geodesic points
@@ -1057,8 +1056,6 @@
   d3.select(this).attr('stroke', colBase);
       }catch(e){ d3.select(this).attr('d', null); }
     });
-    // Diagnostic information removed
-    try { /* previously used for runtime diagnostics; removed */ } catch(e) { /* ignore */ }
     updateFlowPositions();
   }
 
@@ -1070,7 +1067,7 @@
    */
   function updateFlowPositions(){
     // respect flow visibility: if flows are turned off, keep them hidden
-    if (!flowVisible) { try { gFlowArcs.selectAll('path.flow').style('display','none'); } catch(e){}; return; }
+    if (!flowVisible) { try { gFlowArcs.selectAll('path.flow').style('display','none'); } catch(e){ reportError('nonfatal', e); }; return; }
     // hide flows in map mode
     if (mode === 'map') { gFlowArcs.selectAll('path.flow').style('display','none'); return; }
     gFlowArcs.selectAll('path.flow').each(function(d){
@@ -1105,10 +1102,10 @@
     sel.exit().remove();
     const enter = sel.enter().append('circle').attr('class','bubble').attr('fill','#e76f51').attr('fill-opacity',0.75).attr('stroke','#fff').attr('stroke-width',0.6);
     // interactivity: tooltip on hover and click to focus
-    enter.on('pointerenter', (ev,d) => { try { const html = `<div style="font-weight:600">${escapeHtml(d.key)}</div><div style="font-size:0.9rem;color:#dfe6ea">Matches hosted: <strong>${d.matches}</strong></div>`; showTooltipAt(ev.clientX, ev.clientY, html); } catch(e){} })
-         .on('pointermove', (ev) => { try { moveTooltipToEvent(ev); } catch(e){} })
-         .on('pointerleave', () => { try { hideTooltip(); } catch(e){} })
-         .on('click', (ev,d) => { try{ ev.stopPropagation(); const found = countries.find(f => canonicalMapName(f.properties?.name||'') === d.key); if (found) { handleCountryClick(found); } } catch(e){} });
+    enter.on('pointerenter', (ev,d) => { try { const html = `<div style="font-weight:600">${escapeHtml(d.key)}</div><div style="font-size:0.9rem;color:#dfe6ea">Matches hosted: <strong>${d.matches}</strong></div>`; showTooltipAt(ev.clientX, ev.clientY, html); } catch(e){ reportError('nonfatal', e); } })
+         .on('pointermove', (ev) => { try { moveTooltipToEvent(ev); } catch(e){ reportError('nonfatal', e); } })
+         .on('pointerleave', () => { try { hideTooltip(); } catch(e){ reportError('nonfatal', e); } })
+         .on('click', (ev,d) => { try{ ev.stopPropagation(); const found = countries.find(f => canonicalMapName(f.properties?.name||'') === d.key); if (found) { handleCountryClick(found); } } catch(e){ reportError('nonfatal', e); } });
 
     enter.merge(sel).attr('r', d => Math.max(1, bubbleRadiusScale(d.matches))).each(function(d){
       const p = projection([d.lon,d.lat]);
@@ -1129,7 +1126,7 @@
       try{
         const p = projection([d.lon,d.lat]);
         if (!p) return; d3.select(this).style('display','block').attr('cx', p[0]).attr('cy', p[1]).attr('r', Math.max(1, bubbleRadiusScale(d.matches)));
-      }catch(e){ /* ignore */ }
+      }catch(e){ reportError('nonfatal', e); }
     });
   }
 
@@ -1404,8 +1401,8 @@
     updateVenuesPosition();
     updateSpikesPosition();
     // Ensure flows and bubbles update positions when projection/mode changes
-    try { updateFlowPositions(); } catch(e) { /* non-fatal */ }
-    try { updateBubblePositions(); } catch(e) { /* non-fatal */ }
+    try { updateFlowPositions(); } catch(e){ reportError('nonfatal', e); }
+    try { updateBubblePositions(); } catch(e){ reportError('nonfatal', e); }
   }
   function updateHoverTransform(){
     gCountries.selectAll("path.country").each(function (d) {
@@ -1511,7 +1508,7 @@
   // reflect map vs globe in body class so UI (legend) can adapt
   document.body.classList.toggle('map-mode', mode === 'map');
   // hide spike legend when in 2D map mode (spikes are a globe visual)
-  try { if (spikeLegendSection) spikeLegendSection.style.display = (mode === 'map' ? 'none' : 'block'); } catch(e){}
+  try { if (spikeLegendSection) spikeLegendSection.style.display = (mode === 'map' ? 'none' : 'block'); } catch(e){ reportError('nonfatal', e); }
     const maxMatches = d3.max(Array.from(choroByCountry.values()||[]), d => d.matches) || 1;
   spikeScale.range([0, mode==="globe" ? 56 : 40]);
     updateSpikesPosition();
@@ -1520,9 +1517,9 @@
       if (bubbleLegendSection) bubbleLegendSection.style.display = (mode === 'map' ? 'block' : 'none');
       const flowCtrl = document.querySelector('.flow-controls'); if (flowCtrl) flowCtrl.style.display = (mode === 'globe' ? 'flex' : 'none');
       const bubbleMetricEl = document.querySelector('.bubble-metric'); if (bubbleMetricEl) bubbleMetricEl.style.display = (mode === 'map' ? 'block' : 'none');
-    } catch(e) {}
+    } catch(e){ reportError('nonfatal', e); }
     // update the left-side instruction box to match current view
-    try { updateInstruction(mode); } catch(e) {}
+    try { updateInstruction(mode); } catch(e){ reportError('nonfatal', e); }
   }
 
   /* ------------------------------- Resize ---------------------------------- */
@@ -1686,7 +1683,7 @@
             );
           }
           if (br && br[0] && br[0].runs != null) bestRuns = +br[0].runs;
-        }catch(e) { /* ignore per-player best fetch errors */ }
+        }catch(e){ reportError('nonfatal', e); }
         out.push({
           player: r.player,
           team: r.team,
@@ -1842,7 +1839,7 @@
 
   // build legend UI (D3) and wire format buttons
   createLegendUI();
-  try { updateInstruction(mode); } catch(e) {}
+  try { updateInstruction(mode); } catch(e){ reportError('nonfatal', e); }
 
   // pause/resume spin on popup and ensure transient loader is hidden when popup state changes
   window.addEventListener("venuewindow:open",  () => { hideVenueLoading(); stopSpin(); });
@@ -1910,7 +1907,7 @@
 
     // Keep the in-memory range up-to-date for other UI pieces (fast)
     yearRange = { min, max };
-    try { if (yearBoxValue) yearBoxValue.textContent = `Years ${min}–${max}`; } catch(e){}
+    try { if (yearBoxValue) yearBoxValue.textContent = `Years ${min}–${max}`; } catch(e){ reportError('nonfatal', e); }
 
     // Debounce expensive work
     if (_yearRangeDebounce) clearTimeout(_yearRangeDebounce);
@@ -1918,7 +1915,7 @@
       _yearRangeDebounce = null;
       try {
         // Optionally show a small loading toast while recomputing
-        try { toast('Updating visuals…'); } catch(e){}
+        try { toast('Updating visuals…'); } catch(e){ reportError('nonfatal', e); }
         await computeChoropleth(min, max);
         try { await computeFlows(min, max); drawFlowArcs(); drawBubbles(); updateBubbleLegend(); } catch(e){ if (DEBUG) console.warn('flow/bubble recompute failed', e); }
 
@@ -1930,14 +1927,14 @@
           }
         } catch (e) { if (DEBUG) console.warn('yearrange:change re-render failed', e); }
       } catch (e) { if (DEBUG) console.warn('yearrange change handler failed', e); }
-      finally { try { toastHide(); } catch(e){} }
+      finally { try { toastHide(); } catch(e){ reportError('nonfatal', e); } }
     }, YEAR_DEBOUNCE_MS);
   });
 
   // initial choropleth + spikes
   await computeChoropleth(yearRange.min, yearRange.max);
   // ensure flows/bubbles are computed initially
-  try { await computeFlows(yearRange.min, yearRange.max); drawFlowArcs(); drawBubbles(); updateBubbleLegend(); } catch(e) {}
+  try { await computeFlows(yearRange.min, yearRange.max); drawFlowArcs(); drawBubbles(); updateBubbleLegend(); } catch(e){ reportError('nonfatal', e); }
   // wire up the format selector once initial data is available
   setupFormatUI();
 
@@ -1945,14 +1942,14 @@
   try {
     const bsel = document.getElementById('bubbleMetricSelect');
     if (bsel) {
-      try{ bsel.value = bubbleMetric; } catch(e){}
+      try{ bsel.value = bubbleMetric; } catch(e){ reportError('nonfatal', e); }
       bsel.addEventListener('change', (ev) => {
         bubbleMetric = ev.target.value || 'matches';
-        try{ localStorage.setItem('bubbleMetric', bubbleMetric); } catch(e){}
-        try{ updateBubbleLegend(); } catch(e){}
+        try{ localStorage.setItem('bubbleMetric', bubbleMetric); } catch(e){ reportError('nonfatal', e); }
+        try{ updateBubbleLegend(); } catch(e){ reportError('nonfatal', e); }
       });
     }
-  } catch(e) { /* non-fatal */ }
+  } catch(e){ reportError('nonfatal', e); }
 
   // Flow visibility + country filter wiring
   try {
@@ -1967,7 +1964,7 @@
       fToggle.checked = !!flowVisible;
       fToggle.addEventListener('change', (ev) => {
         flowVisible = !!ev.target.checked;
-        try { if (!flowVisible) { gFlowArcs.selectAll('path.flow').style('display','none'); } else { gFlowArcs.selectAll('path.flow').style('display','block'); drawFlowArcs(); } } catch(e){}
+        try { if (!flowVisible) { gFlowArcs.selectAll('path.flow').style('display','none'); } else { gFlowArcs.selectAll('path.flow').style('display','block'); drawFlowArcs(); } } catch(e){ reportError('nonfatal', e); }
       });
     }
     // wire dropdown open/close
@@ -1980,9 +1977,9 @@
           fCountryList.style.display = show ? 'block' : 'none';
         });
         // click outside closes
-        document.addEventListener('click', () => { try { fCountryList.style.display = 'none'; } catch(e){} });
+        document.addEventListener('click', () => { try { fCountryList.style.display = 'none'; } catch(e){ reportError('nonfatal', e); } });
       }
-    } catch(e){}
+    } catch(e){ reportError('nonfatal', e); }
     // wire select-all
     if (fSelectAll) {
       fSelectAll.addEventListener('change', () => {
@@ -1994,10 +1991,10 @@
       });
     }
     // initial population if flows already exist
-    try { renderFlowFilterUI(); } catch(e){}
+    try { renderFlowFilterUI(); } catch(e){ reportError('nonfatal', e); }
     // hide flow controls in map mode
-    try { const fc = document.querySelector('.flow-controls'); if (fc) fc.style.display = (mode === 'globe' ? 'flex' : 'none'); } catch(e){}
-  } catch(e) { /* non-fatal */ }
+    try { const fc = document.querySelector('.flow-controls'); if (fc) fc.style.display = (mode === 'globe' ? 'flex' : 'none'); } catch(e){ reportError('nonfatal', e); }
+  } catch(e){ reportError('nonfatal', e); }
 
   /* ------------------------- Utilities: slider ------------------------------ */
   function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
@@ -2047,7 +2044,7 @@
     const dragLeft = d3.drag()
       .on("start", function(event) {
         yearBox.classList.add("dragging");
-        try { d3.select(this).raise(); } catch(e){}
+        try { d3.select(this).raise(); } catch(e){ reportError('nonfatal', e); }
         d3.select(this).classed('active', true);
       })
       .on("drag", (event) => {
@@ -2067,7 +2064,7 @@
     const dragRight = d3.drag()
       .on("start", function(event) {
         yearBox.classList.add("dragging");
-        try { d3.select(this).raise(); } catch(e){}
+        try { d3.select(this).raise(); } catch(e){ reportError('nonfatal', e); }
         d3.select(this).classed('active', true);
       })
       .on("drag", (event) => {

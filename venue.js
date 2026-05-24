@@ -246,13 +246,13 @@
         tabRadar.setAttribute('aria-pressed','true'); tabEvo.setAttribute('aria-pressed','false');
         radarWrap.style.display = 'block'; evoWrap.style.display = 'none';
         // show the radar format legend when Radar tab is active
-        try { legend.classList.remove('hidden'); } catch(e){}
+        try { legend.classList.remove('hidden'); } catch(e){ reportError('nonfatal', e); }
       });
       tabEvo.addEventListener('click', () => {
         tabRadar.setAttribute('aria-pressed','false'); tabEvo.setAttribute('aria-pressed','true');
         radarWrap.style.display = 'none'; evoWrap.style.display = 'block';
         // hide the radar-specific format legend when Evolution tab is active
-        try { legend.classList.add('hidden'); } catch(e){}
+        try { legend.classList.add('hidden'); } catch(e){ reportError('nonfatal', e); }
       });
 
     panel.appendChild(header);
@@ -381,7 +381,7 @@
     // metrics may be attached via svgEl._metrics or via dataset
     const metricsObj = svgEl._metrics || null;
     if (!metricsObj && svgEl.dataset && svgEl.dataset.metrics) {
-      try { svgEl._metrics = JSON.parse(svgEl.dataset.metrics); } catch(e) { /* ignore */ }
+      try { svgEl._metrics = JSON.parse(svgEl.dataset.metrics); } catch(e){ reportError('nonfatal', e); }
     }
     const metricsByFormat = (svgEl._metrics && svgEl._metrics.byFormat) ? svgEl._metrics.byFormat : null;
     if (!metricsByFormat) {
@@ -689,7 +689,7 @@
       }
 
   // store last fetched rows so Evolution controls can re-render without re-query
-  try { panel._lastRows = rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){}
+  try { panel._lastRows = rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
   // Draw evolution heatmap from raw rows for the selected yrRange and format
   try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { if (DEBUG) console.warn('evolution draw failed', e); }
 
@@ -764,11 +764,11 @@
             if (byFormat[norm]) byFormat[norm].innings_by_no = (fb[k] || []).map(x => ({ innings_no: x.innings_no, avg_runs: Number(x.avg_runs || 0), count: Number(x.cnt || 0) }));
           });
         }
-      } catch(e) { /* non-fatal */ }
+      } catch(e){ reportError('nonfatal', e); }
 
       svgEl._metrics = { byFormat }; svgEl.dataset.metrics = JSON.stringify({ byFormat });
-      try { const diag = panel.querySelector('.venue-diag'); if (diag) diag.textContent = JSON.stringify(svgEl._metrics, null, 2); } catch(e){}
-      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), svgEl._metrics); } catch(e){}
+      try { const diag = panel.querySelector('.venue-diag'); if (diag) diag.textContent = JSON.stringify(svgEl._metrics, null, 2); } catch(e){ reportError('nonfatal', e); }
+      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), svgEl._metrics); } catch(e){ reportError('nonfatal', e); }
       drawRadar(svgEl);
       // hide loading overlay if present
       if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -796,7 +796,7 @@
       const heatErr = panel.querySelector('.venue-heat');
       if (heatErr) heatErr.innerHTML = `<div style="color:var(--muted);font-size:.92rem">No metrics available.</div>`;
       svgEl._metrics = null; drawRadar(svgEl);
-      try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(_e){}
+      try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(e){ reportError('nonfatal', e); }
     }
   }
 
@@ -856,7 +856,7 @@
           const meta = { rowsCount: (rows||[]).length, filteredRows: (usedRows||[]).length, years: years.length, metrics: metrics.map((m,i)=>({ key: m.key, nonNull: matrix[i].filter(v=>v!=null).length })) };
           diag.textContent = JSON.stringify(meta, null, 2);
         }
-      }catch(e){}
+      }catch(e){ reportError('nonfatal', e); }
 
       // For each metric compute color domain across years and assign a distinct palette per metric
       const METRIC_PALETTES = {
@@ -910,7 +910,7 @@
             legendEl.appendChild(item);
           });
         }
-      }catch(e){ /* non-fatal */ }
+      }catch(e){ reportError('nonfatal', e); }
 
       // cell sizes
       const cellW = Math.max(12, Math.floor(iw / Math.max(1, years.length)));
@@ -939,7 +939,7 @@
               document.body.appendChild(tip);
               const rect = ev.target.getBoundingClientRect();
               tip.style.left = `${rect.right + 8}px`; tip.style.top = `${rect.top}px`;
-              cell.on('mouseleave', () => { try{ tip.remove(); }catch(e){} });
+              cell.on('mouseleave', () => { try{ tip.remove(); }catch(e){ reportError('nonfatal', e); } });
             });
           }
         });
@@ -1009,8 +1009,8 @@
         const legendEl = panel.querySelector('.venue-legend');
         if (radarWrapEl) radarWrapEl.style.display = 'block';
         if (evoWrapEl) evoWrapEl.style.display = 'none';
-        try { if (legendEl) legendEl.classList.remove('hidden'); } catch(_){}
-      } catch (e) { /* non-fatal */ }
+        try { if (legendEl) legendEl.classList.remove('hidden'); } catch(e){ reportError('nonfatal', e); }
+      } catch(e){ reportError('nonfatal', e); }
     } catch (e) {
       if (DEBUG) console.warn('VenueWindow.open: UI show failed', e);
     }
@@ -1022,7 +1022,7 @@
       try{
         const m = yr.match(/(\d{4})\s*[–-]\s*(\d{4})/);
         if (m) { min = +m[1]; max = +m[2]; }
-      }catch(e){}
+      }catch(e){ reportError('nonfatal', e); }
       const fmt = window.selectedFormat || 'all';
       // fetch DB metrics and render radar
       // show immediate per-panel loading overlay while fetching
@@ -1038,7 +1038,7 @@
         } catch (err) {
           if (DEBUG) console.warn('fetchAndRender failed in VenueWindow.open', err);
         } finally {
-          try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(e){}
+          try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(e){ reportError('nonfatal', e); }
         }
       })();
     }
@@ -1053,7 +1053,7 @@
       const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
       const loadingOverlay = radarWrap ? radarWrap.querySelector('.venue-loading') : null;
       if (loadingOverlay) loadingOverlay.style.display = 'none';
-    } catch(e){}
+    } catch(e){ reportError('nonfatal', e); }
     // hide blue backdrop gracefully
     const backdropEl = document.getElementById('backdrop');
     if (backdropEl) {
