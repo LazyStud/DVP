@@ -37,7 +37,7 @@ On first load the app reads the SQLite database from `./data/db/cricket.db` (shi
    - Year-range and format filters scoped to that venue
    - Heavy aggregation queries offloaded to a Web Worker so the UI stays responsive
 8. **Year range slider** (2000–2025) — dual-thumb slider that re-queries the DB and redraws all layers.
-9. **Leaderboard overlay** — top-N Batting and Bowling tables (currently placeholder data, see *Known limitations*).
+9. **Leaderboard overlay** — top-N Batting and Bowling tables sourced live from the SQLite DB via `getBattingLeaderboard` / `getBowlingLeaderboard`, respecting the active year-range and format filter.
 10. **Country focus** — click a country (or a bubble) to zoom in and list its venues.
 11. **Tooltips** — hovering a country shows home-win % with a per-format breakdown plus a few notable venues; hovering a venue shows total matches split by format.
 
@@ -127,7 +127,7 @@ DVP/
 
 ## Known limitations
 
-- The Batting / Bowling **leaderboard overlay** currently shows hard-coded demo data (`battingData` / `bowlingData` arrays in `map.js`); wiring it to the SQLite tables is left as future work.
+- The Batting / Bowling **leaderboard overlay** queries the SQLite DB directly (`getBattingLeaderboard` / `getBowlingLeaderboard` in `map.js`). Small hard-coded fallback arrays exist in case the DB query fails, but under normal operation all data is live from the database.
 - Country borders come from `countries-110m.json`, which is intentionally low-resolution — small island nations look chunky at high zoom.
 - A few historical venues with missing lat/lon are silently skipped when drawing icons.
 

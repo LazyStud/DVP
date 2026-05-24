@@ -263,7 +263,7 @@
   let bubbleMetric = (function(){ try{ return localStorage.getItem('bubbleMetric') || 'matches'; } catch(e){ return 'matches'; } })();
   // (rivalry-specific UI removed; flows are controlled by the single flow dropdown)
 
-  /* ----------------------------- Demo leaderboard -------------------------- */
+  /* ----------------------------- Leaderboard fallback data (used only if DB query fails) -- */
   const battingData = [
     { player:"Player A", team:"IND", runs:945, sr:142.3, avg:52.5 },
     { player:"Player B", team:"AUS", runs:903, sr:136.4, avg:48.2 },

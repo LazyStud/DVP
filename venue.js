@@ -177,10 +177,6 @@
     <div class="evo-legend" style="margin:6px 0 8px;display:flex;gap:8px;flex-wrap:wrap"></div>
     <svg width="760" height="260" data-role="evo-heatmap"></svg>`;
 
-  const heatWrap = document.createElement("div");
-  heatWrap.className = "venue-card venue-heat";
-  heatWrap.textContent = "Heatmap (coming soon)";
-
   const info = document.createElement("div");
   info.className = "venue-card venue-info";
     info.style.display = "block";
@@ -207,7 +203,6 @@
   contentEl.appendChild(tabBar);
   contentEl.appendChild(topRow);
   contentEl.appendChild(evoWrap);
-    contentEl.appendChild(heatWrap);
     contentEl.appendChild(info);
 
     // prepare interactive legend items (format toggles)
