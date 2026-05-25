@@ -15,9 +15,9 @@ export function updateInstruction(currentMode) {
           <rect x="10" y="6" width="4" height="15" rx="1.2"></rect>
           <rect x="17" y="3" width="4" height="18" rx="1.2"></rect>
         </svg>
-        <div style="display:flex;flex-direction:column">
-          <div style="font-weight:700;color:var(--text);font-size:0.98rem">Leaderboards</div>
-          <div style="font-size:0.86rem;color:var(--muted)">Click the icon to view Batting (runs, SR, avg) and Bowling (wkts, eco, avg) leaderboards.</div>
+        <div class="ins-lb-text">
+          <div class="ins-lb-title">Leaderboards</div>
+          <div class="ins-lb-desc">Click the icon to view Batting (runs, SR, avg) and Bowling (wkts, eco, avg) leaderboards.</div>
         </div>
       </div>`;
 
@@ -41,7 +41,6 @@ export function updateInstruction(currentMode) {
     if (insBtn) {
       insBtn.addEventListener('click',   ev => { ev.stopPropagation(); try { btnMenu?.click(); } catch (e) { reportError('nonfatal', e); } });
       insBtn.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); try { btnMenu?.click(); } catch (e) { reportError('nonfatal', e); } } });
-      insBtn.style.cursor = 'pointer';
     }
   } catch (e) { reportError('nonfatal', e); }
 }

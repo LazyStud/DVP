@@ -614,8 +614,8 @@ body { background: transparent; }
   border-radius: 12px;
   padding: 10px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-  width: min(420px, calc(100vw - 40px));
-  max-width: 420px;
+  width: 820px;
+  max-width: 92vw;
   max-height: calc(100vh - 40px);
   overflow: auto;
   font-size: 14px;
@@ -625,14 +625,25 @@ body { background: transparent; }
 #venue-window .venue-title{ margin:0; font-size:1.05rem; color:var(--text); }
 #venue-window .venue-badge{ font-size:0.85rem; color:var(--muted); background: rgba(255,255,255,0.03); padding:4px 8px; border-radius:8px; }
 #venue-window .venue-close{ background: transparent; color: var(--text); border: 1px solid var(--panel-border); padding:4px 8px; border-radius:8px; cursor:pointer; }
-#venue-window .venue-content{ display:flex; flex-direction:column; gap:8px; padding-top:10px; }
+#venue-window .venue-content{ display:flex; flex-direction:column; gap:12px; padding-top:10px; }
 #venue-window .venue-card{ background: rgba(255,255,255,0.02); border-radius:8px; padding:8px; }
+
+/* ===== Utility ============================================================ */
+.hidden { display: none !important; }
 
 /* Venue popup enhancements */
 .venue-legend { display:flex; align-items:center; justify-content:flex-start; gap:8px; padding:10px; }
 .venue-legend-item { background: transparent; border: none; color: var(--text); cursor: pointer; padding:6px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; }
 .venue-legend-item[aria-pressed="false"] { opacity: 0.45; }
-.venue-legend-item .legend-dot { box-shadow: 0 6px 18px rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.04); }
+.venue-legend-item .legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.venue-legend-label { font-size: 0.95rem; color: var(--text); }
 
 /* Venue legend sizing moved from inline styles: keep layout responsive */
 .venue-legend { flex: 1 1 240px; min-width: 220px; min-height: 48px; }
@@ -655,6 +666,101 @@ body { background: transparent; }
   box-shadow: 0 6px 18px rgba(0,0,0,0.28);
 }
 
+/* ===== Venue window internals ============================================= */
+/* Header left (title + badge) */
+.venue-header-left { display: flex; align-items: center; gap: 8px; }
+
+/* Developer diagnostics panel (hidden by default, visible on Shift+click) */
+.venue-diag {
+  display: none;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+  margin: 8px 0;
+  padding: 8px;
+  background: rgba(0,0,0,0.06);
+  color: var(--muted);
+}
+.venue-diag.visible { display: block; }
+
+/* Top row: radar SVG left, format legend right */
+.venue-top-row { display: flex; gap: 16px; align-items: flex-start; }
+
+/* Radar wrap (fixed width so year-slider below stays visible) */
+.venue-radar-wrap { flex: 0 0 420px; position: relative; }
+
+/* Tab bar (Radar / Evolution) */
+.venue-tabbar { display: flex; gap: 8px; margin: 8px 0; }
+
+/* Evolution heatmap panel */
+.venue-evolution { margin-top: 8px; }
+
+/* Legend items container (format toggles) */
+.venue-legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+/* Heat summary (format breakdown list) */
+.venue-heat-list { display: grid; gap: 6px; margin-top: 6px; }
+.venue-heat-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.venue-heat-row-left { display: flex; align-items: center; gap: 8px; }
+.venue-heat-format-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.venue-heat-format-key { width: 48px; text-transform: uppercase; color: var(--muted); }
+.venue-heat-label { color: var(--muted); }
+.venue-heat-value { text-align: right; color: var(--text); }
+
+/* Evolution legend (per-metric gradient swatches) */
+.evo-legend { margin: 6px 0 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.evo-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.evo-legend-box { width: 120px; height: 12px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.06); }
+.evo-legend-lbl { display: flex; flex-direction: column; justify-content: center; }
+.evo-legend-title { color: var(--muted); font-size: 0.85rem; }
+.evo-legend-scale { color: var(--muted); font-size: 0.78rem; }
+
+/* Evolution header + controls */
+.evo-header { display: flex; justify-content: space-between; align-items: center; }
+.evo-header-title { font-weight: 600; margin-bottom: 6px; }
+.evo-controls { display: flex; gap: 8px; align-items: center; }
+.evo-format-label { font-size: 0.9rem; color: var(--muted); margin-right: 6px; }
+.evo-fmt { padding: 4px 8px; border-radius: 6px; }
+
+/* Venue info card body */
+.venue-info-grid { display: grid; gap: 6px; font-size: .95rem; }
+.venue-info-row { display: flex; justify-content: space-between; gap: 12px; }
+.venue-info-label { color: var(--muted); }
+
+/* Heatmap cell tooltip */
+.venue-heat-tip {
+  position: fixed;
+  z-index: 2000;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+/* ===== Flow filter dropdown UI =========================================== */
+.flow-filter-row { display: flex; align-items: center; gap: 8px; padding: 4px 2px; cursor: pointer; }
+.flow-filter-cb { margin: 0 6px 0 0; }
+.flow-filter-swatch { width: 14px; height: 14px; display: inline-block; border-radius: 2px; }
+.flow-filter-lbl { color: #e8e8e8; font-size: 0.88rem; margin-left: 6px; }
+
+/* ===== Leaderboard ======================================================= */
+/* Prevent text selection when clicking column headers to sort */
+.lb-table thead { user-select: none; }
+
+/* ===== Instruction box =================================================== */
+.ins-leaderboard[role="button"] { cursor: pointer; }
+.ins-lb-text { display: flex; flex-direction: column; }
+.ins-lb-title { font-weight: 700; color: var(--text); font-size: 0.98rem; }
+.ins-lb-desc { font-size: 0.86rem; color: var(--muted); }
 
 /* Radar polygon styles */
 .radar-poly { transition: opacity 160ms ease, transform 180ms ease; }
@@ -668,7 +774,7 @@ body { background: transparent; }
 .fmt-hidden-t20i .radar-poly-t20i { opacity: 0.06 !important; }
 
 /* Fancy info card */
-.venue-info { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:10px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); }
+.venue-info { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:8px 10px; border-radius:10px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); }
 .venue-info .v-country { font-weight:700; color:var(--text); }
 .venue-info .v-city { color:var(--muted); }
 .venue-info .v-aka { font-size:0.92rem; color:var(--muted); }

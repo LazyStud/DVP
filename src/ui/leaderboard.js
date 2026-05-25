@@ -160,7 +160,6 @@ export async function renderLeaderboard(kind = 'batting') {
 
     const thead = tabPanel.querySelector('thead');
     if (thead) {
-      thead.style.userSelect = 'none';
       const newThead = thead.cloneNode(true);
       thead.parentNode.replaceChild(newThead, thead);
       newThead.addEventListener('click', ev => {

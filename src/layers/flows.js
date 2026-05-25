@@ -95,11 +95,10 @@ export function renderFlowFilterUI() {
   container.innerHTML = '';
 
   origins.forEach(k => {
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 2px;cursor:pointer';
-    const cb  = document.createElement('input'); cb.type = 'checkbox'; cb.value = k; cb.checked = true; cb.style.margin = '0 6px 0 0';
-    const sw  = document.createElement('span');  sw.style.cssText = `width:14px;height:14px;display:inline-block;border-radius:2px;background:${state.countryColors.get(k) || state.countryColorScale(k)}`;
-    const lbl = document.createElement('span');  lbl.textContent = k; lbl.style.cssText = 'color:#e8e8e8;font-size:0.88rem;margin-left:6px';
+    const row = document.createElement('div'); row.className = 'flow-filter-row';
+    const cb  = document.createElement('input'); cb.type = 'checkbox'; cb.value = k; cb.checked = true; cb.className = 'flow-filter-cb';
+    const sw  = document.createElement('span');  sw.className = 'flow-filter-swatch'; sw.style.background = state.countryColors.get(k) || state.countryColorScale(k);
+    const lbl = document.createElement('span');  lbl.textContent = k; lbl.className = 'flow-filter-lbl';
     row.appendChild(cb); row.appendChild(sw); row.appendChild(lbl);
     row.addEventListener('click', ev => { if (ev.target?.tagName === 'INPUT') return; cb.checked = !cb.checked; updateFlowSelectionFromUI(); });
     cb.addEventListener('change', () => updateFlowSelectionFromUI());
