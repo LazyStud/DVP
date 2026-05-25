@@ -748,6 +748,30 @@ body { background: transparent; }
   .legend { width: 160px; max-width: 160px; top: 52px; }
 }
 
+/* ===== Keyboard accessibility — T-2.4 ====================================
+   The existing :focus rules use outline:none (good for mouse).
+   These rules re-enable a visible ring for keyboard-only navigation.
+   Using !important to override the higher-specificity outline:none above.
+   ========================================================================== */
+
+/* Suppress browser default ring for pointer users only */
+:focus:not(:focus-visible) { outline: none; }
+
+/* Visible ring for keyboard users on every interactive element */
+:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Round ring for the circular slider thumbs */
+.yr-thumb:focus-visible {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 4px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(255,138,0,0.18), 0 4px 12px rgba(0,0,0,0.35);
+}
+
 /* ── 480px: narrow phones ───────────────────────────────────────────────── */
 @media (max-width: 480px) {
   /* Instruction box overlaps legend at 360 px — hide it; users discover via tap */

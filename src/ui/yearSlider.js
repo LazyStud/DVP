@@ -38,6 +38,8 @@ function render(emit = true) {
   yrBubbleL.textContent = Math.round(vL);
   yrBubbleR.textContent = Math.round(vR);
   yearBoxValue.textContent = `Years ${Math.round(vL)}–${Math.round(vR)}`;
+  yrThumbL.setAttribute('aria-valuenow', Math.round(vL));
+  yrThumbR.setAttribute('aria-valuenow', Math.round(vR));
 
   if (emit) {
     state.yearRange = { min: Math.round(vL), max: Math.round(vR) };
@@ -53,6 +55,29 @@ export function syncSlider(min, max) {
   vL = Number.isFinite(min) ? Math.round(min) : vL;
   vR = Number.isFinite(max) ? Math.round(max) : vR;
   render(false);
+}
+
+function handleThumbKey(e, isLeft) {
+  const step = e.shiftKey ? 5 : 1;
+  switch (e.key) {
+    case 'ArrowLeft':  case 'ArrowDown':
+      if (isLeft) vL = clamp(vL - step, YEAR_MIN, vR);
+      else        vR = clamp(vR - step, vL, YEAR_MAX);
+      break;
+    case 'ArrowRight': case 'ArrowUp':
+      if (isLeft) vL = clamp(vL + step, YEAR_MIN, vR);
+      else        vR = clamp(vR + step, vL, YEAR_MAX);
+      break;
+    case 'Home':
+      if (isLeft) vL = YEAR_MIN; else vR = vL;
+      break;
+    case 'End':
+      if (isLeft) vL = vR; else vR = YEAR_MAX;
+      break;
+    default: return;
+  }
+  e.preventDefault();
+  render();
 }
 
 function initCollapseBtn() {
@@ -106,6 +131,9 @@ export function initYearBox(recomputeOnly) {
 
   d3.select(yrThumbL).call(dragLeft);
   d3.select(yrThumbR).call(dragRight);
+
+  yrThumbL.addEventListener('keydown', e => handleThumbKey(e, true));
+  yrThumbR.addEventListener('keydown', e => handleThumbKey(e, false));
 
   d3.select(yrTrack).on('mousedown touchstart', event => {
     const W = Math.max(1, yrTrack.getBoundingClientRect().width);

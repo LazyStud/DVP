@@ -4,6 +4,7 @@
   let panel, titleEl, badgeEl, contentEl;
   let isOpen = false;
   let currentDatum = null;
+  let _prevFocus = null;
   // small in-memory cache to avoid re-running heavy DB queries for the same venue/year/format
   const _metricsCache = new Map();
   // debounce timer for yearrange slider updates
@@ -909,10 +910,12 @@
     // global `venuewindow:open` event before kicking off the potentially long
     // fetch to ensure map-level transient loaders hide promptly.
     try {
+      _prevFocus = document.activeElement;
       panel.style.left = '50%';
       panel.style.top = '50%';
       panel.style.transform = 'translate(-50%, -50%)';
       panel.style.display = "block";
+      setTimeout(() => { const cb = panel.querySelector('.venue-close'); if (cb) cb.focus(); }, 20);
       // show blue backdrop (but keep year slider interactive above it)
       const backdropEl = document.getElementById('backdrop');
       if (backdropEl) {
@@ -996,6 +999,8 @@
     panel.style.transform = '';
     delete panel.dataset.centered;
     window.dispatchEvent(new CustomEvent("venuewindow:close"));
+    try { if (_prevFocus && typeof _prevFocus.focus === 'function') _prevFocus.focus(); } catch (_) {}
+    _prevFocus = null;
   }
 
   function reposition(){
