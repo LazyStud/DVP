@@ -13,11 +13,18 @@ The project is fully static — no build step, no npm install, no server-side co
 From the project root:
 
 ```powershell
+npm install       # first time only
+npm run dev       # starts Vite dev server at http://localhost:5173 with hot reload
+```
+
+Or if you don't have Node/npm:
+
+```powershell
 python -m http.server 8000
 # then open http://localhost:8000/index.html
 ```
 
-Or use the VS Code **Live Server** extension and open `index.html`. Recommended browsers: latest Chrome, Edge or Firefox (WebAssembly + Web Workers + IndexedDB required).
+VS Code **Live Server** also works. Recommended browsers: latest Chrome, Edge or Firefox (WebAssembly + Web Workers + IndexedDB required).
 
 On first load the app reads the SQLite database from `./data/db/cricket.db` (shipped in this repo) and caches it in IndexedDB, so subsequent loads are near-instant.
 
@@ -37,7 +44,7 @@ On first load the app reads the SQLite database from `./data/db/cricket.db` (shi
    - Year-range and format filters scoped to that venue
    - Heavy aggregation queries offloaded to a Web Worker so the UI stays responsive
 8. **Year range slider** (2000–2025) — dual-thumb slider that re-queries the DB and redraws all layers.
-9. **Leaderboard overlay** — top-N Batting and Bowling tables (currently placeholder data, see *Known limitations*).
+9. **Leaderboard overlay** — top-N Batting and Bowling tables sourced live from the SQLite DB via `getBattingLeaderboard` / `getBowlingLeaderboard`, respecting the active year-range and format filter.
 10. **Country focus** — click a country (or a bubble) to zoom in and list its venues.
 11. **Tooltips** — hovering a country shows home-win % with a per-format breakdown plus a few notable venues; hovering a venue shows total matches split by format.
 
@@ -52,9 +59,10 @@ On first load the app reads the SQLite database from `./data/db/cricket.db` (shi
 | **sql.js 1.10.2**| Runs SQLite in WebAssembly entirely in the browser                       |
 | **Web Workers**  | `venue-worker.js` runs heavy per-venue SQL aggregations off the main thread |
 | **IndexedDB**    | Persistent cache of the SQLite binary (keyed by version) so the DB only downloads once |
-| **Vanilla HTML / CSS / JS** | No framework, no bundler                                       |
+| **Vite**         | Dev server with HMR; bundles `src/main.js` and its ES-module imports for production |
+| **Vanilla HTML / CSS / JS** | No framework; the visualisation layer is plain ES modules  |
 
-All third-party libraries are loaded from CDNs (`jsdelivr`, `cdnjs`) — there is no `node_modules`.
+Third-party visualisation libraries (`d3`, `topojson-client`, `sql.js`) are loaded from CDNs. Vite handles the ES-module entry point (`src/main.js`) while the legacy utility scripts (`db.js`, `venue.js`, `venue-worker.js`, `tilt-toggle.js`, `formats.js`) are served verbatim.
 
 ---
 
@@ -80,7 +88,7 @@ Everything the app needs ships in the repo, so the simplest deploy is **GitHub P
 2. On GitHub, go to **Settings → Pages → Build and deployment → Deploy from branch**, pick `main` and `/ (root)`.
 3. After a minute the site is live at `https://lazystud.github.io/DVP/`.
 
-The `DB_URL` constant near the top of [`map.js`](map.js) is set to `./data/db/cricket.db`, so the DB loads from the same origin as the page — no extra hosting needed. Netlify / Vercel / Cloudflare Pages work the same way (drop the folder in, no build command, publish directory = repo root).
+The `DB_URL` constant in [`src/config.js`](src/config.js) is set to `./data/db/cricket.db`, so the DB loads from the same origin as the page — no extra hosting needed. Netlify / Vercel / Cloudflare Pages work the same way (point publish directory to `dist/` after `npm run build`, or serve the root for the dev build).
 
 ---
 
@@ -89,12 +97,35 @@ The `DB_URL` constant near the top of [`map.js`](map.js) is set to `./data/db/cr
 ```
 DVP/
 ├── index.html              Entry point — DOM scaffold, script tags, year slider, overlays
-├── map.js                  Main visualisation: globe/map, choropleth, spikes, bubbles, flows, tooltips
+├── src/                    ES-module visualisation layer (Vite entry point)
+│   ├── main.js             Entry point: SVG setup, scales, spin, zoom, redrawAll, init sequence
+│   ├── config.js           All shared constants (URLs, colours, year bounds, palettes)
+│   ├── state.js            Shared mutable state object (no singleton exports, avoids circular deps)
+│   ├── data/
+│   │   ├── queries.js      SQL helpers: computeChoropleth, computeFlows, leaderboard queries
+│   │   └── names.js        Canonical country/format name maps and column synonyms
+│   ├── layers/
+│   │   ├── sphere.js       Graticule, sphere and boundary mesh
+│   │   ├── countries.js    Choropleth, hover highlight, country click handler
+│   │   ├── spikes.js       Spike markers + legend
+│   │   ├── flows.js        Flow arcs + filter UI
+│   │   ├── bubbles.js      Proportional bubbles + legend
+│   │   ├── venues.js       Stadium icons + country-click → venue list
+│   │   └── focus.js        focusGlobeOn / focusMapOn (zoom-to-country)
+│   └── ui/
+│       ├── tooltip.js      Hover tooltips (country + venue)
+│       ├── toast.js        Loading toast + venue-loading overlay
+│       ├── instructionBox.js  Left-side help text (updates per view mode)
+│       ├── legends.js      Right-side spike/bubble legend DOM + format selector
+│       ├── leaderboard.js  Leaderboard overlay — batting + bowling tabs
+│       └── yearSlider.js   Dual-thumb year-range slider
 ├── venue.js                VenueWindow popup — radar chart, evolution heatmap, per-venue filters
 ├── venue-worker.js         Web Worker that runs heavy SQL aggregations for the venue panel
 ├── db.js                   sql.js bootstrap + IndexedDB cache (keyed by version)
+├── formats.js              Format-key normalisation helpers (global script)
 ├── tilt-toggle.js          2D / 3D toggle control + view-toggle / view-mode-sync events
 ├── styles.css              All styling (landing, globe, panels, overlays, tooltips)
+├── vite.config.js          Vite config — legacy scripts copied verbatim, src/main.js bundled
 ├── Dushyant_34439765_Report.pdf   Submitted report
 └── data/
     ├── csvs/               Source datasets (see table above)
@@ -106,28 +137,29 @@ DVP/
 
 ## How it fits together
 
-1. `index.html` boots the page and loads the four scripts in order: `db.js`, `venue.js`, `tilt-toggle.js`, `map.js`.
-2. `map.js` calls `DB.init(DB_URL)` from `db.js`, which either restores the SQLite binary from IndexedDB or downloads it and caches it.
-3. Once the DB is ready, `map.js` introspects the schema (`PRAGMA table_info(...)`) to pick canonical column names — this makes the app tolerant of small schema drifts.
-4. The world TopoJSON is fetched, countries are drawn, then the choropleth / spikes / bubbles / flows are computed from SQL queries and rendered.
-5. The year slider, format selector and 2D/3D toggle all funnel into a single `requery + redraw` pipeline.
+1. `index.html` loads the legacy global scripts (`db.js`, `formats.js`, `venue.js`, `tilt-toggle.js`) then `src/main.js` as an ES module via Vite.
+2. `src/main.js` calls `DB.init(DB_URL)` (from the global `db.js`), which either restores the SQLite binary from IndexedDB or downloads and caches it.
+3. Once the DB is ready, `src/data/queries.js` introspects the schema (`PRAGMA table_info(...)`) to pick canonical column names — this makes the app tolerant of small schema drifts.
+4. The world TopoJSON is fetched by `main.js` (top-level `await`), countries are drawn, then the choropleth / spikes / bubbles / flows are computed from SQL in `queries.js` and rendered by the `layers/` modules.
+5. The year slider (`ui/yearSlider.js`), format selector (`ui/legends.js`) and 2D/3D toggle all funnel into a single `recomputeAndDraw(yearMin, yearMax)` pipeline in `main.js`.
 6. Clicking a venue icon hands off to `VenueWindow` (`venue.js`), which posts an `aggregate` message to `venue-worker.js`. The worker opens its own sql.js instance against the cached SQLite blob, runs the per-format / per-year aggregations, and posts the result back for the radar / evolution charts.
 
 ---
 
 ## Notable design touches
 
-- **Schema-tolerant queries.** `map.js` keeps lists of column synonyms (`WINNER_SYNS`, `DATE_SYNS`, `HOST_SYNS`, …) and picks whichever exists in the loaded DB, so the same code works against slightly different schemas.
+- **Schema-tolerant queries.** `src/data/names.js` keeps lists of column synonyms (`WINNER_SYNS`, `DATE_SYNS`, `HOST_SYNS`, …) and picks whichever exists in the loaded DB, so the same code works against slightly different schemas.
 - **Country-name canonicalisation.** A small alias map collapses USA/UK/UAE/Caribbean nations into the names used in the TopoJSON and in the team field, so joins between match data and map geometry stay consistent.
 - **IndexedDB versioning.** The DB cache key embeds a version string; bumping it in `db.js` forces every client to re-download on the next visit.
 - **Worker-based aggregation.** Heavy per-venue queries (multi-format, multi-year) run in `venue-worker.js` so the globe keeps spinning at 60 fps while the radar populates.
 - **Accessible UI.** ARIA roles, live regions and keyboard handlers on the slider, tabs, and inline leaderboard launcher.
+- **Debug logging.** All `console.warn` / `console.info` calls are gated behind a `DEBUG` flag. Append `?debug=1` to the URL (e.g. `http://localhost:8000/index.html?debug=1`) to enable them; omit it for a clean console.
 
 ---
 
 ## Known limitations
 
-- The Batting / Bowling **leaderboard overlay** currently shows hard-coded demo data (`battingData` / `bowlingData` arrays in `map.js`); wiring it to the SQLite tables is left as future work.
+- The Batting / Bowling **leaderboard overlay** queries the SQLite DB directly (`getBattingLeaderboard` / `getBowlingLeaderboard` in `src/data/queries.js`). Small hard-coded fallback arrays exist in case the DB query fails, but under normal operation all data is live from the database.
 - Country borders come from `countries-110m.json`, which is intentionally low-resolution — small island nations look chunky at high zoom.
 - A few historical venues with missing lat/lon are silently skipped when drawing icons.
 

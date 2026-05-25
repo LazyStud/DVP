@@ -26,10 +26,10 @@
         if (msg.error) p.reject(new Error(msg.error)); else p.resolve(msg.result);
       };
       _venueWorker.onerror = (e) => {
-        console.warn('venue worker error', e);
+        if (DEBUG) console.warn('venue worker error', e);
       };
     }catch(e){
-      console.warn('Failed to create venue worker', e);
+      if (DEBUG) console.warn('Failed to create venue worker', e);
       _venueWorker = null;
     }
   }
@@ -57,19 +57,13 @@
     if (panel) return;
     panel = document.createElement("div");
     panel.id = "venue-window";
-    // ensure the panel is positioned and above the map/svg so left/top positioning works
-    panel.style.position = 'fixed';
-    panel.style.zIndex = 1305;
-    panel.style.display = 'none';
 
     // header
     const header = document.createElement("div");
     header.className = "venue-header";
 
     const left = document.createElement("div");
-    left.style.display = "flex";
-    left.style.alignItems = "center";
-    left.style.gap = "8px";
+    left.className = "venue-header-left";
 
     titleEl = document.createElement("h3");
     titleEl.className = "venue-title";
@@ -78,14 +72,6 @@
   // developer diagnostics panel (hidden by default). Toggle with Shift+click on title.
   const diagPanel = document.createElement('pre');
   diagPanel.className = 'venue-diag';
-  diagPanel.style.display = 'none';
-  diagPanel.style.whiteSpace = 'pre-wrap';
-  diagPanel.style.maxHeight = '180px';
-  diagPanel.style.overflow = 'auto';
-  diagPanel.style.margin = '8px 0';
-  diagPanel.style.padding = '8px';
-  diagPanel.style.background = 'rgba(0,0,0,0.06)';
-  diagPanel.style.color = 'var(--muted)';
   diagPanel.textContent = '';
 
     badgeEl = document.createElement("span");
@@ -108,28 +94,17 @@
     // content
     contentEl = document.createElement("div");
     contentEl.className = "venue-content";
-    // make layout horizontal: radar on left, legend/filters on right
-    contentEl.style.display = 'flex';
-    contentEl.style.flexDirection = 'column';
-    contentEl.style.gap = '12px';
 
   const topRow = document.createElement('div');
-  topRow.style.display = 'flex';
-  topRow.style.gap = '16px';
-  topRow.style.alignItems = 'flex-start';
+  topRow.className = 'venue-top-row';
 
   const radarWrap = document.createElement("div");
-  // make the radar area wider so the year slider below remains visible
-  radarWrap.style.flex = '0 0 420px';
-  radarWrap.style.position = 'relative';
+  radarWrap.className = 'venue-radar-wrap';
   radarWrap.innerHTML = `<svg width="420" height="220" data-role="radar"></svg>`;
 
   const legend = document.createElement("div");
   legend.className = "venue-card venue-legend";
-    // interactive legend will be populated/controlled by JS
-    legend.innerHTML = `
-      <div class="venue-legend-items" style="display:flex;flex-direction:column;gap:12px;align-items:flex-start;font-size:0.95rem;color:var(--text)"></div>
-    `;
+  legend.innerHTML = `<div class="venue-legend-items"></div>`;
 
   topRow.appendChild(radarWrap);
   topRow.appendChild(legend);
@@ -137,84 +112,58 @@
   // Tab bar to switch between Radar and Evolution (multi-year heatmap)
   const tabBar = document.createElement('div');
   tabBar.className = 'venue-tabbar';
-  tabBar.style.display = 'flex';
-  tabBar.style.gap = '8px';
-  tabBar.style.margin = '8px 0';
 
   const tabRadar = document.createElement('button');
   tabRadar.className = 'venue-tab';
   tabRadar.textContent = 'Radar';
   tabRadar.setAttribute('aria-pressed', 'true');
-  tabRadar.style.padding = '6px 10px';
   tabBar.appendChild(tabRadar);
   // Evolution tab
   const tabEvo = document.createElement('button');
   tabEvo.className = 'venue-tab';
   tabEvo.textContent = 'Evolution';
   tabEvo.setAttribute('aria-pressed', 'false');
-  tabEvo.style.padding = '6px 10px';
   tabBar.appendChild(tabEvo);
 
-  // Trajectory container (hidden by default) — contains two charts: batting and bowling
   // Trajectory charts removed per user request. Only Radar and Evolution remain.
 
-  // Evolution container (heatmap) hidden by default — includes format controls and legend
+  // Evolution container (heatmap) — hidden until Evolution tab is selected
   const evoWrap = document.createElement('div');
-  evoWrap.className = 'venue-evolution';
-  evoWrap.style.display = 'none';
-  evoWrap.style.marginTop = '8px';
+  evoWrap.className = 'venue-evolution hidden';
   evoWrap.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="font-weight:600;margin-bottom:6px">Evolution (year × metric)</div>
-      <div class="evo-controls" style="display:flex;gap:8px;align-items:center">
-        <div style="font-size:0.9rem;color:var(--muted);margin-right:6px">Format:</div>
-        <button class="evo-fmt" data-format="all" aria-pressed="true" style="padding:4px 8px;border-radius:6px">All</button>
-        <button class="evo-fmt" data-format="test" aria-pressed="false" style="padding:4px 8px;border-radius:6px">Test</button>
-        <button class="evo-fmt" data-format="odi" aria-pressed="false" style="padding:4px 8px;border-radius:6px">ODI</button>
-  <button class="evo-fmt" data-format="t20" aria-pressed="false" style="padding:4px 8px;border-radius:6px">T20I</button>
+    <div class="evo-header">
+      <div class="evo-header-title">Evolution (year × metric)</div>
+      <div class="evo-controls">
+        <div class="evo-format-label">Format:</div>
+        <button class="evo-fmt" data-format="all" aria-pressed="true">All</button>
+        <button class="evo-fmt" data-format="test" aria-pressed="false">Test</button>
+        <button class="evo-fmt" data-format="odi" aria-pressed="false">ODI</button>
+        <button class="evo-fmt" data-format="t20" aria-pressed="false">T20I</button>
       </div>
     </div>
-    <div class="evo-legend" style="margin:6px 0 8px;display:flex;gap:8px;flex-wrap:wrap"></div>
+    <div class="evo-legend"></div>
     <svg width="760" height="260" data-role="evo-heatmap"></svg>`;
-
-  const heatWrap = document.createElement("div");
-  heatWrap.className = "venue-card venue-heat";
-  heatWrap.textContent = "Heatmap (coming soon)";
 
   const info = document.createElement("div");
   info.className = "venue-card venue-info";
-    info.style.display = "block";
-    info.style.padding = "8px 10px";
-    info.style.color = "var(--text)";
-    info.innerHTML = `
-      <div style="display:grid;gap:6px;font-size:.95rem;">
-        <div style="display:flex;justify-content:space-between;gap:12px;">
-          <span style="color:var(--muted)">Country</span><span class="v-country">—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:12px;">
-          <span style="color:var(--muted)">City</span><span class="v-city">—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:12px;">
-          <span style="color:var(--muted)">Also known as</span><span class="v-aka">—</span>
-        </div>
-      </div>
-    `;
-
-    // make panel wider so the page's year slider below remains visible
-    panel.style.width = '820px';
-    panel.style.maxWidth = '92vw';
+  info.innerHTML = `
+    <div class="venue-info-grid">
+      <div class="venue-info-row"><span class="venue-info-label">Country</span><span class="v-country">—</span></div>
+      <div class="venue-info-row"><span class="venue-info-label">City</span><span class="v-city">—</span></div>
+      <div class="venue-info-row"><span class="venue-info-label">Also known as</span><span class="v-aka">—</span></div>
+    </div>
+  `;
 
   contentEl.appendChild(tabBar);
   contentEl.appendChild(topRow);
   contentEl.appendChild(evoWrap);
-    contentEl.appendChild(heatWrap);
     contentEl.appendChild(info);
 
     // prepare interactive legend items (format toggles)
     const FORMATS = [
       { key: 'test', label: 'Test', color: '#e6cf9a' },
       { key: 'odi',  label: 'ODI',  color: '#2dd4bf' },
-      { key: 't20i', label: 'T20I', color: '#a78bfa' }
+      { key: 't20',  label: 'T20I', color: '#a78bfa' }
     ];
     const itemsWrap = legend.querySelector('.venue-legend-items');
     FORMATS.forEach(f => {
@@ -222,14 +171,7 @@
       btn.className = 'venue-legend-item';
       btn.setAttribute('data-format', f.key);
       btn.setAttribute('aria-pressed', 'true');
-      btn.style.display = 'inline-flex';
-      btn.style.alignItems = 'center';
-      btn.style.gap = '8px';
-      btn.style.background = 'transparent';
-      btn.style.border = 'none';
-      btn.style.color = 'var(--text)';
-      btn.style.cursor = 'pointer';
-      btn.innerHTML = `<i class="legend-dot" style="width:10px;height:10px;border-radius:50%;background:${f.color};display:inline-block;margin-right:6px;box-shadow:0 2px 6px ${f.color}33;"></i><span style="font-size:0.95rem;color:var(--text)">${f.label}</span>`;
+      btn.innerHTML = `<i class="legend-dot" style="background:${f.color};box-shadow:0 2px 6px ${f.color}33;"></i><span class="venue-legend-label">${f.label}</span>`;
       btn.addEventListener('click', (e) => {
         const fmt = btn.getAttribute('data-format');
         const pressed = btn.getAttribute('aria-pressed') === 'true';
@@ -249,22 +191,20 @@
       // Tab switching behavior
       tabRadar.addEventListener('click', () => {
         tabRadar.setAttribute('aria-pressed','true'); tabEvo.setAttribute('aria-pressed','false');
-        radarWrap.style.display = 'block'; evoWrap.style.display = 'none';
-        // show the radar format legend when Radar tab is active
-        try { legend.classList.remove('hidden'); } catch(e){}
+        radarWrap.classList.remove('hidden'); evoWrap.classList.add('hidden');
+        try { legend.classList.remove('hidden'); } catch(e){ reportError('nonfatal', e); }
       });
       tabEvo.addEventListener('click', () => {
         tabRadar.setAttribute('aria-pressed','false'); tabEvo.setAttribute('aria-pressed','true');
-        radarWrap.style.display = 'none'; evoWrap.style.display = 'block';
-        // hide the radar-specific format legend when Evolution tab is active
-        try { legend.classList.add('hidden'); } catch(e){}
+        radarWrap.classList.add('hidden'); evoWrap.classList.remove('hidden');
+        try { legend.classList.add('hidden'); } catch(e){ reportError('nonfatal', e); }
       });
 
     panel.appendChild(header);
     // Toggle diag panel for developers
     titleEl.addEventListener('click', (e) => {
       if (e.shiftKey) {
-        diagPanel.style.display = diagPanel.style.display === 'none' ? 'block' : 'none';
+        diagPanel.classList.toggle('visible');
       }
     });
     panel.appendChild(contentEl);
@@ -318,7 +258,7 @@
         const rows = panel._lastRows || [];
         const yr = panel._lastYrRange || currentYearRange;
         drawEvolutionHeatmap(rows, yr, fmt);
-      }catch(e){ console.warn('Failed to re-render evolution heatmap for format', fmt, e); }
+      }catch(e){ if (DEBUG) console.warn('Failed to re-render evolution heatmap for format', fmt, e); }
     });
   }
 
@@ -386,7 +326,7 @@
     // metrics may be attached via svgEl._metrics or via dataset
     const metricsObj = svgEl._metrics || null;
     if (!metricsObj && svgEl.dataset && svgEl.dataset.metrics) {
-      try { svgEl._metrics = JSON.parse(svgEl.dataset.metrics); } catch(e) { /* ignore */ }
+      try { svgEl._metrics = JSON.parse(svgEl.dataset.metrics); } catch(e){ reportError('nonfatal', e); }
     }
     const metricsByFormat = (svgEl._metrics && svgEl._metrics.byFormat) ? svgEl._metrics.byFormat : null;
     if (!metricsByFormat) {
@@ -449,7 +389,7 @@
     const FORMATS = [
       { key: 'test', color: '#e6cf9a' },
       { key: 'odi',  color: '#2dd4bf' },
-      { key: 't20i', color: '#a78bfa' }
+      { key: 't20',  color: '#a78bfa' }
     ];
 
     const line = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
@@ -542,8 +482,7 @@
 
   // fetch aggregated metrics for a venue + year range + format and render radar + textual summaries
   async function fetchAndRender(datum, yrRange = {min:2000,max:2025}, format = 'all'){
-    // normalize format aliases so modules use a consistent key for SQL filtering
-    if (format === 't20i') format = 't20';
+    format = Formats.normalizeFormat(format);
     const svgEl = panel.querySelector('svg[data-role="radar"]');
     if (!svgEl) return;
     const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
@@ -600,7 +539,7 @@
       try {
         rows = DB.queryAll(sql, sqlParams) || [];
       } catch (e) {
-        console.warn('venue_stats query failed', e);
+        if (DEBUG) console.warn('venue_stats query failed', e);
         rows = [];
       }
 
@@ -690,18 +629,18 @@
           // keep innings-by-no available for merging later
           try { panel._fallback_innings = innMap; } catch(e) { panel._fallback_innings = null; }
         } catch (fbErr) {
-          console.warn('fallback per-innings aggregation failed', fbErr);
+          if (DEBUG) console.warn('fallback per-innings aggregation failed', fbErr);
         }
       }
 
   // store last fetched rows so Evolution controls can re-render without re-query
-  try { panel._lastRows = rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){}
+  try { panel._lastRows = rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
   // Draw evolution heatmap from raw rows for the selected yrRange and format
-  try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { console.warn('evolution draw failed', e); }
+  try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { if (DEBUG) console.warn('evolution draw failed', e); }
 
       // Group rows by normalized format key and aggregate sums
-      const byFormat = { test: null, odi: null, t20i: null };
-      const normFormat = (s) => (String(s||'').toLowerCase().includes('test') ? 'test' : (String(s||'').toLowerCase().includes('odi') ? 'odi' : (String(s||'').toLowerCase().includes('t20') || String(s||'').toLowerCase().includes('twenty') ? 't20i' : 'other')));
+      const byFormat = { test: null, odi: null, t20: null };
+      const normFormat = (s) => { const k = Formats.normalizeFormat(s); return k === 'all' ? 'other' : k; };
 
       const groups = {};
       for (const r of rows) {
@@ -735,7 +674,7 @@
         if (r.bowling_sr != null) { g.bowling_sr_sum += Number(r.bowling_sr) * w; g.bowling_sr_w += w; }
       }
 
-      ['test','odi','t20i'].forEach(fmt => {
+      ['test','odi','t20'].forEach(fmt => {
         const g = groups[fmt];
         if (!g) { byFormat[fmt] = null; return; }
         // Use only the explicit metric columns from `venue_stats` (weighted by matches)
@@ -765,16 +704,16 @@
         const fb = panel._fallback_innings || null;
         if (fb) {
           Object.keys(fb).forEach(k => {
-            const norm = (k || '').toLowerCase().includes('test') ? 'test' : (k || '').toLowerCase().includes('odi') ? 'odi' : ((k || '').toLowerCase().includes('t20') ? 't20i' : null);
+            const _nk = Formats.normalizeFormat(k); const norm = _nk === 'all' ? null : _nk;
             if (!norm) return;
             if (byFormat[norm]) byFormat[norm].innings_by_no = (fb[k] || []).map(x => ({ innings_no: x.innings_no, avg_runs: Number(x.avg_runs || 0), count: Number(x.cnt || 0) }));
           });
         }
-      } catch(e) { /* non-fatal */ }
+      } catch(e){ reportError('nonfatal', e); }
 
       svgEl._metrics = { byFormat }; svgEl.dataset.metrics = JSON.stringify({ byFormat });
-      try { const diag = panel.querySelector('.venue-diag'); if (diag) diag.textContent = JSON.stringify(svgEl._metrics, null, 2); } catch(e){}
-      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), svgEl._metrics); } catch(e){}
+      try { const diag = panel.querySelector('.venue-diag'); if (diag) diag.textContent = JSON.stringify(svgEl._metrics, null, 2); } catch(e){ reportError('nonfatal', e); }
+      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), svgEl._metrics); } catch(e){ reportError('nonfatal', e); }
       drawRadar(svgEl);
       // hide loading overlay if present
       if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -784,29 +723,28 @@
       if (heat) {
         const totalMatches = Object.values(byFormat).reduce((s, m) => s + (m && m.matches_count ? m.matches_count : 0), 0);
         heat.innerHTML = `<div style="font-size:.95rem;color:var(--text)"><div style="margin-bottom:6px"><strong>Total matches (selected years):</strong> ${totalMatches}</div></div>`;
-        const list = document.createElement('div'); list.style.display = 'grid'; list.style.gap = '6px'; list.style.marginTop = '6px';
-        const formatOrder = ['test','odi','t20i'];
-        const colors = { test: '#e6cf9a', odi: '#2dd4bf', t20i: '#a78bfa' };
+        const list = document.createElement('div'); list.className = 'venue-heat-list';
+        const formatOrder = ['test','odi','t20'];
+        const colors = { test: '#e6cf9a', odi: '#2dd4bf', t20: '#a78bfa' };
         formatOrder.forEach(k => {
           const m = byFormat[k];
-          const row = document.createElement('div');
-          row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center'; row.style.gap = '10px';
-          row.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${colors[k]}"></span><strong style="width:48px;text-transform:uppercase;color:var(--muted)">${k}</strong><span style="color:var(--muted)">Matches:</span></div><div style="text-align:right;color:var(--text)">${m && m.matches_count ? m.matches_count : '—'}</div>`;
+          const row = document.createElement('div'); row.className = 'venue-heat-row';
+          row.innerHTML = `<div class="venue-heat-row-left"><span class="venue-heat-format-dot" style="background:${colors[k]}"></span><strong class="venue-heat-format-key">${k}</strong><span class="venue-heat-label">Matches:</span></div><div class="venue-heat-value">${m && m.matches_count ? m.matches_count : '—'}</div>`;
           list.appendChild(row);
         });
         heat.appendChild(list);
       }
       return;
     } catch (e) {
-      console.warn('fetchAndRender venue metrics failed', e);
+      if (DEBUG) console.warn('fetchAndRender venue metrics failed', e);
       const heatErr = panel.querySelector('.venue-heat');
       if (heatErr) heatErr.innerHTML = `<div style="color:var(--muted);font-size:.92rem">No metrics available.</div>`;
       svgEl._metrics = null; drawRadar(svgEl);
-      try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(_e){}
+      try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(e){ reportError('nonfatal', e); }
     }
   }
 
-  // Draw evolution heatmap: rows = metrics, cols = years. Accepts optional format ('all','test','odi','t20i')
+  // Draw evolution heatmap: rows = metrics, cols = years. Accepts optional format ('all','test','odi','t20')
   function drawEvolutionHeatmap(rows, yrRange, format = 'all'){
     try{
       const svgEl = panel.querySelector('svg[data-role="evo-heatmap"]');
@@ -832,8 +770,7 @@
       // Filter rows by selected format (if requested)
       const usedRows = (format && format !== 'all') ? rows.filter(r => {
         const rf = String(r.format||'').toLowerCase();
-        // accept both 't20' and 't20i' aliases
-        if (format === 't20i' || format === 't20') return rf.includes('t20');
+        if (format === 't20') return rf.includes('t20');
         return rf.includes(String(format||'').toLowerCase());
       }) : rows;
 
@@ -863,7 +800,7 @@
           const meta = { rowsCount: (rows||[]).length, filteredRows: (usedRows||[]).length, years: years.length, metrics: metrics.map((m,i)=>({ key: m.key, nonNull: matrix[i].filter(v=>v!=null).length })) };
           diag.textContent = JSON.stringify(meta, null, 2);
         }
-      }catch(e){}
+      }catch(e){ reportError('nonfatal', e); }
 
       // For each metric compute color domain across years and assign a distinct palette per metric
       const METRIC_PALETTES = {
@@ -889,35 +826,24 @@
         if (legendEl) {
           legendEl.innerHTML = '';
           metrics.forEach((m, i) => {
-            const item = document.createElement('div');
-            item.className = 'evo-legend-item';
-            item.style.display = 'flex';
-            item.style.alignItems = 'center';
-            item.style.gap = '8px';
-            item.style.fontSize = '0.85rem';
-            // color box
-            const box = document.createElement('div');
-            box.style.width = '120px'; box.style.height = '12px'; box.style.borderRadius = '4px';
-            box.style.border = '1px solid rgba(0,0,0,0.06)';
+            const item = document.createElement('div'); item.className = 'evo-legend-item';
+            const box = document.createElement('div'); box.className = 'evo-legend-box';
             if (colorScales[i]){
               const dom = colorScales[i].domain();
-              const start = colorScales[i](dom[0]);
-              const end = colorScales[i](dom[1]);
-              box.style.background = `linear-gradient(to right, ${start}, ${end})`;
+              box.style.background = `linear-gradient(to right, ${colorScales[i](dom[0])}, ${colorScales[i](dom[1])})`;
             } else {
               box.style.background = '#efefef';
             }
-            const lbl = document.createElement('div');
-            lbl.style.display = 'flex'; lbl.style.flexDirection = 'column'; lbl.style.justifyContent = 'center';
-            const title = document.createElement('div'); title.textContent = m.label; title.style.color = 'var(--muted)'; title.style.fontSize = '0.85rem';
-            const scaleTxt = document.createElement('div'); scaleTxt.style.color = 'var(--muted)'; scaleTxt.style.fontSize = '0.78rem';
+            const lbl = document.createElement('div'); lbl.className = 'evo-legend-lbl';
+            const title = document.createElement('div'); title.className = 'evo-legend-title'; title.textContent = m.label;
+            const scaleTxt = document.createElement('div'); scaleTxt.className = 'evo-legend-scale';
             if (colorScales[i]){ const dom = colorScales[i].domain(); scaleTxt.textContent = `${Math.round(dom[0]*100)/100} → ${Math.round(dom[1]*100)/100}`; } else { scaleTxt.textContent = 'no data'; }
             lbl.appendChild(title); lbl.appendChild(scaleTxt);
             item.appendChild(box); item.appendChild(lbl);
             legendEl.appendChild(item);
           });
         }
-      }catch(e){ /* non-fatal */ }
+      }catch(e){ reportError('nonfatal', e); }
 
       // cell sizes
       const cellW = Math.max(12, Math.floor(iw / Math.max(1, years.length)));
@@ -940,13 +866,11 @@
             cell.on('mouseenter', (ev) => {
               const tip = document.createElement('div');
               tip.className = 'venue-heat-tip';
-              tip.style.position = 'fixed'; tip.style.zIndex = 2000; tip.style.background='rgba(0,0,0,0.8)'; tip.style.color='white'; tip.style.padding='6px 8px'; tip.style.borderRadius='6px';
-              tip.style.fontSize='0.9rem';
               tip.textContent = `${m.label} ${years[ci]}: ${typeof v==='number' ? (Math.round((v+Number.EPSILON)*100)/100) : v}`;
               document.body.appendChild(tip);
               const rect = ev.target.getBoundingClientRect();
               tip.style.left = `${rect.right + 8}px`; tip.style.top = `${rect.top}px`;
-              cell.on('mouseleave', () => { try{ tip.remove(); }catch(e){} });
+              cell.on('mouseleave', () => { try{ tip.remove(); }catch(e){ reportError('nonfatal', e); } });
             });
           }
         });
@@ -960,7 +884,7 @@
       });
 
       // Removed bottom SVG legend: per-metric HTML legends are shown above the heatmap
-    }catch(e){ console.warn('drawEvolutionHeatmap failed', e); }
+    }catch(e){ if (DEBUG) console.warn('drawEvolutionHeatmap failed', e); }
   }
 
   /* API */
@@ -1014,12 +938,12 @@
         const radarWrapEl = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
         const evoWrapEl = panel.querySelector('.venue-evolution');
         const legendEl = panel.querySelector('.venue-legend');
-        if (radarWrapEl) radarWrapEl.style.display = 'block';
-        if (evoWrapEl) evoWrapEl.style.display = 'none';
-        try { if (legendEl) legendEl.classList.remove('hidden'); } catch(_){}
-      } catch (e) { /* non-fatal */ }
+        if (radarWrapEl) radarWrapEl.classList.remove('hidden');
+        if (evoWrapEl) evoWrapEl.classList.add('hidden');
+        try { if (legendEl) legendEl.classList.remove('hidden'); } catch(e){ reportError('nonfatal', e); }
+      } catch(e){ reportError('nonfatal', e); }
     } catch (e) {
-      console.warn('VenueWindow.open: UI show failed', e);
+      if (DEBUG) console.warn('VenueWindow.open: UI show failed', e);
     }
 
     if (rsvg) {
@@ -1029,7 +953,7 @@
       try{
         const m = yr.match(/(\d{4})\s*[–-]\s*(\d{4})/);
         if (m) { min = +m[1]; max = +m[2]; }
-      }catch(e){}
+      }catch(e){ reportError('nonfatal', e); }
       const fmt = window.selectedFormat || 'all';
       // fetch DB metrics and render radar
       // show immediate per-panel loading overlay while fetching
@@ -1043,9 +967,9 @@
         try {
           await fetchAndRender(d, { min, max }, fmt);
         } catch (err) {
-          console.warn('fetchAndRender failed in VenueWindow.open', err);
+          if (DEBUG) console.warn('fetchAndRender failed in VenueWindow.open', err);
         } finally {
-          try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(e){}
+          try { if (loadingOverlay) loadingOverlay.style.display = 'none'; } catch(e){ reportError('nonfatal', e); }
         }
       })();
     }
@@ -1060,7 +984,7 @@
       const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
       const loadingOverlay = radarWrap ? radarWrap.querySelector('.venue-loading') : null;
       if (loadingOverlay) loadingOverlay.style.display = 'none';
-    } catch(e){}
+    } catch(e){ reportError('nonfatal', e); }
     // hide blue backdrop gracefully
     const backdropEl = document.getElementById('backdrop');
     if (backdropEl) {

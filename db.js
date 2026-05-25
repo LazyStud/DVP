@@ -3,6 +3,10 @@
 
 let SQL, db;
 
+const DEBUG = new URLSearchParams(location.search).has('debug');
+
+function reportError(scope, err) { if (DEBUG) console.warn('[' + scope + ']', err); }
+
 const IDB_NAME  = "cricket-sqlite-cache";
 const IDB_STORE = "files";
 
@@ -80,7 +84,7 @@ const DB = {
         return;
       }
     } catch (e) {
-      console.warn("[DB] cache read failed:", e);
+      if (DEBUG) console.warn("[DB] cache read failed:", e);
     }
 
     // 2) Fetch from the first working URL, then cache it
@@ -96,7 +100,7 @@ const DB = {
         return;
       } catch (e) {
         lastErr = e;
-        console.warn("[DB] fetch failed:", e.message);
+        if (DEBUG) console.warn("[DB] fetch failed:", e.message);
       }
     }
     throw new Error(`Failed to load DB from all sources: ${lastErr?.message || "unknown"}`);
