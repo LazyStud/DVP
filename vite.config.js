@@ -1,11 +1,10 @@
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-// Scripts are plain globals (not ES modules) until T-1.3 converts them.
-// viteStaticCopy copies them verbatim into dist/ so the build is functional.
+// map.js replaced by src/main.js (ES modules, T-1.3). Remaining scripts are
+// still plain globals and must be copied verbatim for the build.
 const legacyScripts = [
-  'formats.js', 'db.js', 'venue.js', 'venue-worker.js',
-  'tilt-toggle.js', 'map.js',
+  'formats.js', 'db.js', 'venue.js', 'venue-worker.js', 'tilt-toggle.js',
 ];
 
 export default defineConfig({
