@@ -2,6 +2,7 @@
  * After calling compute*, callers in main.js trigger the draw functions.
  * Accesses globals: DB (db.js), Formats (formats.js), d3 (CDN).
  */
+import { DEBUG }                          from '../debug.js';
 import { state }                          from '../state.js';
 import {
   canonicalMapName, canonicalTeamName, hostToHomeTeamCountry,

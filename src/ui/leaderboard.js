@@ -1,4 +1,5 @@
 /* Leaderboard overlay: open/close, tab switching, table rendering. */
+import { DEBUG }                                        from '../debug.js';
 import { state }                                        from '../state.js';
 import { YEAR_MIN, YEAR_MAX }                           from '../config.js';
 import { getBattingLeaderboard, getBowlingLeaderboard } from '../data/queries.js';

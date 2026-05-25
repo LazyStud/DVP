@@ -14,40 +14,54 @@ const yearBoxValue = document.getElementById('yearBoxValue');
 
 function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
+// Module-scope so drag handlers AND external callers (playback) share the same state.
+let vL = YEAR_MIN;
+let vR = YEAR_MAX;
+
+function render(emit = true) {
+  if (!yrTrack || !yrSlider || !yrFill || !yrThumbL || !yrThumbR) return;
+  const trackRect  = yrTrack.getBoundingClientRect();
+  const sliderRect = yrSlider.getBoundingClientRect();
+  const W          = Math.max(1, trackRect.width);
+  const trackLeft  = trackRect.left - sliderRect.left;
+  const yearToX    = d3.scaleLinear().domain([YEAR_MIN, YEAR_MAX]).range([0, W]);
+
+  if (vL > vR) [vL, vR] = [vR, vL];
+  vL = clamp(Math.round(vL), YEAR_MIN, YEAR_MAX);
+  vR = clamp(Math.round(vR), YEAR_MIN, YEAR_MAX);
+
+  const xL = yearToX(vL), xR = yearToX(vR);
+  yrFill.style.left   = `${trackLeft + xL}px`;
+  yrFill.style.width  = `${xR - xL}px`;
+  yrThumbL.style.left = `${trackLeft + xL}px`;
+  yrThumbR.style.left = `${trackLeft + xR}px`;
+  yrBubbleL.textContent = Math.round(vL);
+  yrBubbleR.textContent = Math.round(vR);
+  yearBoxValue.textContent = `Years ${Math.round(vL)}–${Math.round(vR)}`;
+
+  if (emit) {
+    state.yearRange = { min: Math.round(vL), max: Math.round(vR) };
+    window.dispatchEvent(new CustomEvent('yearrange:change', { detail: state.yearRange }));
+  }
+}
+
+/**
+ * Move thumbs to a new range without dispatching yearrange:change.
+ * Used by playback to keep the visual in sync without double-triggering recompute.
+ */
+export function syncSlider(min, max) {
+  vL = Number.isFinite(min) ? Math.round(min) : vL;
+  vR = Number.isFinite(max) ? Math.round(max) : vR;
+  render(false);
+}
+
 export function initYearBox(recomputeOnly) {
   if (!yearBox || !yrSlider || !yrTrack || !yrThumbL || !yrThumbR) return;
 
-  let vL = Number.isFinite(state.yearRange?.min) ? +state.yearRange.min : YEAR_MIN;
-  let vR = Number.isFinite(state.yearRange?.max) ? +state.yearRange.max : YEAR_MAX;
-
-  function render(emit = true) {
-    const trackRect   = yrTrack.getBoundingClientRect();
-    const sliderRect  = yrSlider.getBoundingClientRect();
-    const W           = Math.max(1, trackRect.width);
-    const trackLeft   = trackRect.left - sliderRect.left;
-    const xToYear     = d3.scaleLinear().domain([0, W]).range([YEAR_MIN, YEAR_MAX]);
-    const yearToX     = d3.scaleLinear().domain([YEAR_MIN, YEAR_MAX]).range([0, W]);
-
-    if (vL > vR) [vL, vR] = [vR, vL];
-    vL = clamp(Math.round(vL), YEAR_MIN, YEAR_MAX);
-    vR = clamp(Math.round(vR), YEAR_MIN, YEAR_MAX);
-
-    const xL = yearToX(vL), xR = yearToX(vR);
-    yrFill.style.left   = `${trackLeft + xL}px`;
-    yrFill.style.width  = `${xR - xL}px`;
-    yrThumbL.style.left = `${trackLeft + xL}px`;
-    yrThumbR.style.left = `${trackLeft + xR}px`;
-    yrBubbleL.textContent = Math.round(vL);
-    yrBubbleR.textContent = Math.round(vR);
-    yearBoxValue.textContent = `Years ${Math.round(vL)}–${Math.round(vR)}`;
-
-    if (emit) {
-      state.yearRange = { min: Math.round(vL), max: Math.round(vR) };
-      window.dispatchEvent(new CustomEvent('yearrange:change', { detail: state.yearRange }));
-    }
-  }
-
   if (recomputeOnly) { render(false); return; }
+
+  vL = Number.isFinite(state.yearRange?.min) ? +state.yearRange.min : YEAR_MIN;
+  vR = Number.isFinite(state.yearRange?.max) ? +state.yearRange.max : YEAR_MAX;
 
   const dragLeft = d3.drag()
     .on('start', function () {

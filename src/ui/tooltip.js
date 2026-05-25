@@ -1,6 +1,7 @@
 /* HTML tooltip helpers + rich country/venue tooltips.
  * Accesses globals: DB (db.js), d3 (CDN).
  */
+import { DEBUG }                from '../debug.js';
 import { state }                from '../state.js';
 import { canonicalMapName }     from '../data/names.js';
 import { loadVenuesForCountry } from '../data/queries.js';

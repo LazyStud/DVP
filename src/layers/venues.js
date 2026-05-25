@@ -1,4 +1,5 @@
 /* Venue icon layer, country-click handler, venue DB helpers. */
+import { DEBUG }                              from '../debug.js';
 import { state }                              from '../state.js';
 import { ICON_PATH, ICON_BASE }               from '../config.js';
 import { canonicalMapName }                   from '../data/names.js';

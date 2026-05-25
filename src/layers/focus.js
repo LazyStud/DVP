@@ -1,4 +1,5 @@
 /* Smooth globe rotation + 2D map zoom-to-fit for a GeoJSON feature. */
+import { DEBUG } from '../debug.js';
 import { state } from '../state.js';
 
 export function focusGlobeOn(feature) {

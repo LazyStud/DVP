@@ -1,4 +1,5 @@
 /* main.js — entry point. Imports all modules, sets up SVG, wires interactions, runs init. */
+import { DEBUG }                                      from './debug.js';
 import { state }                                      from './state.js';
 import { DB_URL, YEAR_MIN, YEAR_MAX, PALETTES, SPIN_DEG_PER_SEC } from './config.js';
 import { loadVenueCountries }                         from './data/queries.js';
@@ -15,6 +16,7 @@ import { updateInstruction }                          from './ui/instructionBox.
 import { hideVenueLoading }                           from './ui/toast.js';
 import { initYearBox }                                from './ui/yearSlider.js';
 import { pushHash, readHash }                         from './ui/urlState.js';
+import { initPlayback }                               from './ui/playback.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
 
@@ -252,6 +254,7 @@ state.selectedFormat = _h.format;
 window.selectedFormat = _h.format;
 
 initYearBox(false);
+initPlayback();
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;

@@ -418,6 +418,24 @@ body:not(.map-mode) .legend .bubble-legend { display: none !important; }
 /* Active thumb state when being dragged */
 .yr-thumb.active { z-index: 4; transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 8px 18px rgba(0,0,0,0.45); }
 
+/* ===== Playback button =================================================== */
+.play-btn {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 160ms, transform 120ms;
+  line-height: 1;
+}
+.play-btn:hover  { background: rgba(255,138,0,0.18); }
+.play-btn.playing { background: rgba(255,138,0,0.25); }
+.play-btn:active  { transform: scale(0.92); }
+
 /* ===== Toast ============================================================= */
 .toast{
   position: fixed; left: 50%; top: 18px; transform: translateX(-50%);
