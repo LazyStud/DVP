@@ -14,6 +14,9 @@ import { renderLeaderboard, wireLeaderboardEvents } from './ui/leaderboard.js';
 import { updateInstruction }                          from './ui/instructionBox.js';
 import { hideVenueLoading }                           from './ui/toast.js';
 import { initYearBox }                                from './ui/yearSlider.js';
+import { pushHash, readHash }                         from './ui/urlState.js';
+import { handleCountryClick }                         from './layers/venues.js';
+import { canonicalMapName }                           from './data/names.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -164,6 +167,7 @@ function setMode(newMode) {
     const bubbleMetricEl = document.querySelector('.bubble-metric'); if (bubbleMetricEl) bubbleMetricEl.style.display = state.mode === 'map' ? 'block' : 'none';
   } catch (_) {}
   try { updateInstruction(state.mode); } catch (e) { reportError('nonfatal', e); }
+  try { pushHash(); } catch (_) {}
 }
 
 window.addEventListener('view-toggle', ev => setMode(ev?.detail?.map ? 'map' : 'globe'));
@@ -196,6 +200,7 @@ state.svg.on('dblclick', () => {
     state.svg.transition().duration(400).call(zoomMap.transform, d3.zoomIdentity).on('end', () => gRoot.attr('transform', null));
     state.mapZoomK = 1; state.countryFocused = false;
   }
+  try { pushHash({ country: '' }); } catch (_) {}
 });
 
 // ── Orchestrated recompute ────────────────────────────────────────────────────
@@ -240,16 +245,25 @@ window.addEventListener('venuewindow:close', () => { hideVenueLoading(); if (sta
 
 wireLeaderboardEvents();
 
+// ── Restore state from URL hash (before initYearBox reads state.yearRange) ───
+const _h = readHash();
+state.yearRange     = { min: _h.yearMin, max: _h.yearMax };
+state.selectedFormat = _h.format;
+window.selectedFormat = _h.format;
+
 initYearBox(false);
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;
 const YEAR_DEBOUNCE_MS = 300;
+window.addEventListener('format:change', () => { try { pushHash(); } catch (_) {} });
+
 window.addEventListener('yearrange:change', ev => {
   const { min, max } = ev.detail || {};
   if (DEBUG) console.info('[SLIDER] requested range:', min, max);
   state.yearRange = { min, max };
   try { const ybv = document.getElementById('yearBoxValue'); if (ybv) ybv.textContent = `Years ${min}–${max}`; } catch (_) {}
+  try { pushHash(); } catch (_) {}
 
   if (_yearRangeDebounce) clearTimeout(_yearRangeDebounce);
   _yearRangeDebounce = setTimeout(async () => {
@@ -330,3 +344,38 @@ enterBtn?.addEventListener('click', () => {
   setMode('globe');
   requestAnimationFrame(() => { resize(); startSpin(); });
 });
+
+// ── Apply hash state that requires post-init DOM/data ────────────────────────
+const _hashHasState = _h.view !== 'globe'
+  || _h.yearMin !== YEAR_MIN || _h.yearMax !== YEAR_MAX
+  || _h.format  !== 'all'
+  || _h.country;
+
+if (_hashHasState) {
+  // Sync format button UI and gradient bar if format differs from default
+  if (_h.format !== 'all') {
+    document.querySelectorAll('.fmt-btn').forEach(b =>
+      b.setAttribute('aria-selected', b.dataset.format === _h.format ? 'true' : 'false')
+    );
+    const grad = document.querySelector('.legend-gradbar');
+    if (grad) grad.style.background =
+      `linear-gradient(90deg, ${PALETTES[_h.format][0]}, ${PALETTES[_h.format][1]}, ${PALETTES[_h.format][2]})`;
+  }
+
+  // Auto-enter explore mode
+  document.body.classList.remove('landing');
+
+  if (_h.view === 'map') {
+    setMode('map');
+  } else {
+    requestAnimationFrame(() => { resize(); startSpin(); });
+  }
+
+  // Restore focused country
+  if (_h.country) {
+    const feat = state.countries.find(
+      f => canonicalMapName(f.properties?.name || '') === _h.country
+    );
+    if (feat) handleCountryClick(feat).catch(() => {});
+  }
+}
