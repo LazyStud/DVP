@@ -649,6 +649,116 @@ body { background: transparent; }
 /* ===== Utility ============================================================ */
 .hidden { display: none !important; }
 
+/* ===== Year slider: collapse toggle (visible on mobile only) ============= */
+.yr-header-controls { display: flex; gap: 8px; align-items: center; }
+
+.yr-collapse-btn {
+  display: none;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  align-items: center; justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: transform 200ms ease;
+}
+.yr-collapse-btn[aria-expanded="false"] { transform: rotate(180deg); }
+
+/* ===== Responsive layout — T-2.3 =========================================
+   Breakpoints: 1024px (tablet), 768px (narrow tablet / stack), 640px (mobile)
+   ========================================================================== */
+
+/* ── 1024px: tighten hero padding ──────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .hero { gap: 16px; padding: 24px; }
+}
+
+/* ── 768px: stack hero, full-screen leaderboard overlay ────────────────── */
+@media (max-width: 768px) {
+  /* Hero: single column — text panel fills width, globe reflows to bottom */
+  .hero {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+    justify-items: center;
+    padding: 20px;
+  }
+  .hero-left { max-width: 100%; width: 100%; }
+
+  /* Globe: centred at the bottom of the viewport on landing */
+  body.landing #globe {
+    right: auto; left: 50%;
+    top: auto;   bottom: 24px;
+    transform: translateX(-50%);
+    width: min(64vw, 320px);
+    height: min(64vw, 320px);
+  }
+
+  /* Leaderboard overlay: full-screen bottom-sheet (slide-up instead of scale) */
+  .overlay {
+    width: 100%; max-width: 100vw;
+    height: 100%; max-height: 100dvh;
+    top: 0; left: 0;
+    border-radius: 0;
+    transform: translateY(4%);
+  }
+  .overlay.open { transform: translateY(0); }
+}
+
+/* ── 640px: mobile ──────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Hide verbose bullet list — too much detail for small screens */
+  .hero-points { display: none; }
+  .hero { padding: 12px; }
+
+  /* Smaller globe circle to leave room for hero text above */
+  body.landing #globe {
+    width: min(76vw, 280px);
+    height: min(76vw, 280px);
+    bottom: 16px;
+  }
+
+  /* Year slider: edge-to-edge drawer pinned to bottom edge */
+  .year-box {
+    left: 0;
+    width: 100%;
+    transform: none;
+    border-radius: 16px 16px 0 0;
+    bottom: 0;
+    padding: 10px 14px 16px;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  }
+
+  /* Larger touch targets for the thumbs */
+  .yr-thumb { width: 32px; height: 32px; }
+  .yr-slider { height: 60px; }
+  .yr-track { height: 12px; }
+  .yr-fill  { height: 12px; }
+
+  /* Collapse toggle: show on mobile */
+  .yr-collapse-btn { display: flex; }
+
+  /* When collapsed, hide the slider rail but keep the header visible */
+  .year-box.collapsed .yr-slider { display: none; }
+
+  /* Narrow the legend slightly to avoid overlap with instruction box */
+  .legend { width: 160px; max-width: 160px; top: 52px; }
+}
+
+/* ── 480px: narrow phones ───────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Instruction box overlaps legend at 360 px — hide it; users discover via tap */
+  .instructions { display: none !important; }
+
+  /* Legend: minimal width */
+  .legend { width: 148px; max-width: 148px; right: 6px; padding: 6px 8px; }
+  .legend .legend-title { font-size: 0.8rem; }
+  .legend .fmt-btn { padding: 5px 6px; font-size: 11px; }
+}
+
 /* Venue popup enhancements */
 .venue-legend { display:flex; align-items:center; justify-content:flex-start; gap:8px; padding:10px; }
 .venue-legend-item { background: transparent; border: none; color: var(--text); cursor: pointer; padding:6px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; }

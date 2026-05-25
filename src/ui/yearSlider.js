@@ -55,6 +55,15 @@ export function syncSlider(min, max) {
   render(false);
 }
 
+function initCollapseBtn() {
+  const btn = document.getElementById('yrCollapseBtn');
+  if (!btn || !yearBox) return;
+  btn.addEventListener('click', () => {
+    const isCollapsed = yearBox.classList.toggle('collapsed');
+    btn.setAttribute('aria-expanded', String(!isCollapsed));
+  });
+}
+
 export function initYearBox(recomputeOnly) {
   if (!yearBox || !yrSlider || !yrTrack || !yrThumbL || !yrThumbR) return;
 
@@ -112,4 +121,5 @@ export function initYearBox(recomputeOnly) {
   });
 
   render(false);
+  initCollapseBtn();
 }
