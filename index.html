@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Global Cricket Insights • 2000–2025</title>
-  <link rel="stylesheet" href="styles.css?v=landing2" />
+  <link rel="stylesheet" href="styles.css?v=t25" />
+  <!-- Apply saved theme before first paint to prevent flash -->
+  <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('gci-theme')||'dark');}catch(_){}</script>
 </head>
 <body class="landing">
   <!-- Background image layer -->
@@ -86,6 +88,9 @@
     </div>
   </section>
 
+  <!-- Theme toggle -->
+  <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to light theme" title="Toggle theme">☀</button>
+
   <!-- Toast -->
   <div id="loadingToast" class="toast">Loading…</div>
 
@@ -107,10 +112,10 @@
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
-  <script src="formats.js?v=landing2"></script>
-  <script src="db.js?v=landing2"></script>
-  <script src="venue.js?v=landing2"></script>
-  <script src="tilt-toggle.js?v=landing2"></script>
+  <script src="formats.js?v=t25"></script>
+  <script src="db.js?v=t25"></script>
+  <script src="venue.js?v=t25"></script>
+  <script src="tilt-toggle.js?v=t25"></script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

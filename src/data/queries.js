@@ -7,6 +7,7 @@ import { state }                          from '../state.js';
 import {
   canonicalMapName, canonicalTeamName, hostToHomeTeamCountry,
   WINNER_SYNS, DATE_SYNS, HOST_SYNS, NEUTRAL_SYNS, RESULT_SYNS, FORMAT_SYNS,
+  TEAM1_SYNS, TEAM2_SYNS,
 } from './names.js';
 import { aggregateChoropleth } from './choropleth.js';
 
@@ -50,6 +51,8 @@ export function loadMatchTables() {
         neutralCol: NEUTRAL_SYNS.find(c => cols.includes(c)),
         resultCol:  RESULT_SYNS.find(c  => cols.includes(c)),
         formatCol:  FORMAT_SYNS.find(c  => cols.includes(c)),
+        team1Col:   TEAM1_SYNS.find(c  => cols.includes(c)),
+        team2Col:   TEAM2_SYNS.find(c  => cols.includes(c)),
       }});
     }
   }
@@ -115,7 +118,8 @@ export async function computeFlows(yearMin, yearMax) {
                          ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
                          ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
                          ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format,
-                         NULL AS team1, NULL AS team2
+                         ${m.team1Col   ? `COALESCE(${m.team1Col},'')` : "''"} AS team1,
+                         ${m.team2Col   ? `COALESCE(${m.team2Col},'')` : "''"} AS team2
                   FROM ${t.name}`;
         });
         rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];

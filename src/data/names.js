@@ -63,3 +63,5 @@ export const HOST_SYNS    = ['venue_country', 'host_country', 'host', 'country',
 export const NEUTRAL_SYNS = ['neutral_venue', 'neutral', 'neutralground'];
 export const RESULT_SYNS  = ['result_type', 'result', 'outcome_type'];
 export const FORMAT_SYNS  = ['format', 'match_type', 'type', 'game_type', 'format_type'];
+export const TEAM1_SYNS   = ['team1', 'home_team', 'team_1', 'team_home'];
+export const TEAM2_SYNS   = ['team2', 'away_team', 'team_2', 'team_away', 'visiting_team'];
