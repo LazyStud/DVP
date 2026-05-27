@@ -201,6 +201,40 @@
         try { legend.classList.add('hidden'); } catch(e){ reportError('nonfatal', e); }
       });
 
+    // Export button: saves currently-visible chart (radar or evolution) as PNG.
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'icon-btn venue-export-btn';
+    exportBtn.setAttribute('aria-label', 'Save chart as PNG');
+    exportBtn.title = 'Save PNG';
+    exportBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/><rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg>';
+    exportBtn.addEventListener('click', () => {
+      if (!window.exportSvgAsPng) return;
+      const evoVisible = !evoWrap.classList.contains('hidden');
+      const svgEl = evoVisible
+        ? evoWrap.querySelector('svg[data-role="evo-heatmap"]')
+        : panel.querySelector('svg[data-role="radar"]');
+      if (!svgEl) return;
+
+      const venueName = (currentDatum && (currentDatum.venue || currentDatum.name || currentDatum.venue_name)) || 'Venue';
+      const country   = (currentDatum && currentDatum.country) ? String(currentDatum.country) : '';
+      const city      = (currentDatum && currentDatum.city)    ? String(currentDatum.city)    : '';
+      const location  = [city, country].filter(Boolean).join(', ');
+      const chartType = evoVisible ? 'Evolution Heatmap' : 'Radar Chart';
+      const yearRange = badgeEl ? badgeEl.textContent : '';
+      const fmt       = currentFormat === 'all' ? 'All formats' : (currentFormat || 'all').toUpperCase();
+      const safeName  = venueName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+      window.exportSvgAsPng(
+        svgEl,
+        `cricket-${safeName}-${evoVisible ? 'evolution' : 'radar'}.png`,
+        {
+          title:   `${venueName}${location ? ' — ' + location : ''} · ${chartType}`,
+          filters: `${yearRange} · Format: ${fmt}`,
+        }
+      );
+    });
+    header.insertBefore(exportBtn, closeBtn);
+
     panel.appendChild(header);
     // Toggle diag panel for developers
     titleEl.addEventListener('click', (e) => {

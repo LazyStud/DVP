@@ -91,6 +91,14 @@
   <!-- Theme toggle -->
   <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to light theme" title="Toggle theme">☀</button>
 
+  <!-- Globe / map PNG export -->
+  <button id="exportGlobeBtn" class="export-globe-btn" aria-label="Save map as PNG" title="Save PNG">
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/>
+      <rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+    </svg>
+  </button>
+
   <!-- Toast -->
   <div id="loadingToast" class="toast">Loading…</div>
 
@@ -98,7 +106,15 @@
   <aside id="leaderboardOverlay" class="overlay" hidden aria-hidden="true" aria-labelledby="lbTitle">
     <header class="overlay-header">
       <h2 id="lbTitle">Leaderboard</h2>
-      <button id="closeOverlay" class="icon-btn" aria-label="Close">✕</button>
+      <div class="overlay-header-actions">
+        <button id="exportLbBtn" class="icon-btn" aria-label="Save leaderboard as PNG" title="Save PNG">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+            <path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/>
+            <rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="closeOverlay" class="icon-btn" aria-label="Close">✕</button>
+      </div>
     </header>
     <nav class="tabs" role="tablist" aria-label="Leaderboards">
       <button id="tab-batting" class="tab active" role="tab" aria-selected="true" data-kind="batting">Batting</button>

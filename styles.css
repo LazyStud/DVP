@@ -216,6 +216,26 @@ body.choro-on .country.has-venues { fill: inherit; }
 [data-theme="light"] .theme-toggle-btn:hover { background: rgba(0,0,0,0.10); border-color: rgba(0,0,0,0.20); }
 body.landing .theme-toggle-btn { display: none !important; }
 
+/* ===== Globe / map PNG export button ==================================== */
+.export-globe-btn {
+  position: fixed;
+  left: 120px; /* right of theme toggle (68 + 40 + 12) */
+  top: 16px;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+  cursor: pointer;
+  z-index: 1202;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 140ms, border-color 140ms;
+}
+.export-globe-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
+[data-theme="light"] .export-globe-btn { border-color: rgba(0,0,0,0.12); background: rgba(0,0,0,0.05); }
+[data-theme="light"] .export-globe-btn:hover { background: rgba(0,0,0,0.10); border-color: rgba(0,0,0,0.20); }
+body.landing .export-globe-btn { display: none !important; }
+
 /* ===== Instruction box (left side of globe/map) ======================== */
 .instructions{
   position: fixed;
@@ -369,9 +389,11 @@ body:not(.map-mode) .legend .bubble-legend { display: none !important; }
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 14px; border-bottom: 1px solid var(--panel-border);
 }
+.overlay-header-actions { display: flex; gap: 8px; align-items: center; }
 .icon-btn { background: transparent; color: var(--text); border: 1px solid var(--panel-border);
   border-radius: 8px; padding: 6px 10px; cursor: pointer; }
 .icon-btn:hover { filter: brightness(1.1); }
+.venue-export-btn { padding: 5px 8px; }
 
 .tabs { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid var(--panel-border); }
 .tab { padding: 8px 12px; border-radius: 10px; background: #0f3b2e; color: var(--text);

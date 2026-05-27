@@ -18,6 +18,7 @@ import { initYearBox }                                from './ui/yearSlider.js';
 import { pushHash, readHash }                         from './ui/urlState.js';
 import { initPlayback }                               from './ui/playback.js';
 import { initThemeToggle }                            from './ui/themeToggle.js';
+import { initExportButtons, exportSvgAsPng }         from './ui/exportPng.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
 
@@ -257,6 +258,8 @@ window.selectedFormat = _h.format;
 initYearBox(false);
 initPlayback();
 initThemeToggle();
+initExportButtons();
+window.exportSvgAsPng = exportSvgAsPng;
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;
