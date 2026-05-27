@@ -10,6 +10,12 @@ import {
   TEAM1_SYNS, TEAM2_SYNS,
 } from './names.js';
 import { aggregateChoropleth } from './choropleth.js';
+import { LRU, cacheKey } from './lru.js';
+
+// ── LRU caches for expensive SQL queries ─────────────────────────────────────
+
+const choroCache = new LRU(12);
+const flowsCache = new LRU(12);
 
 // ── Schema cache ─────────────────────────────────────────────────────────────
 
@@ -67,20 +73,28 @@ export async function computeChoropleth(yearMin, yearMax) {
   const tables = loadMatchTables();
   let rows = [];
   if (tables.length) {
-    try {
-      const parts = tables.map(t => {
-        const m = t.map;
-        return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
-                       ${m.dateCol} AS date,
-                       ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
-                       ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
-                       ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format
-                FROM ${t.name}`;
-      });
-      rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]);
-    } catch (e) {
-      if (DEBUG) console.warn('[CHORO] Query failed:', e);
-      rows = [];
+    const key = cacheKey(yearMin, yearMax);
+    const cached = choroCache.get(key);
+    if (cached !== undefined) {
+      rows = cached;
+      if (DEBUG) console.info('[CHORO] cache hit', key);
+    } else {
+      try {
+        const parts = tables.map(t => {
+          const m = t.map;
+          return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
+                         ${m.dateCol} AS date,
+                         ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
+                         ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
+                         ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format
+                  FROM ${t.name}`;
+        });
+        rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]);
+        choroCache.set(key, rows);
+      } catch (e) {
+        if (DEBUG) console.warn('[CHORO] Query failed:', e);
+        rows = [];
+      }
     }
   }
 
@@ -111,18 +125,26 @@ export async function computeFlows(yearMin, yearMax) {
     try {
       const tables = loadMatchTables();
       if (tables.length) {
-        const parts = tables.map(t => {
-          const m = t.map;
-          return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
-                         ${m.dateCol} AS date,
-                         ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
-                         ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
-                         ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format,
-                         ${m.team1Col   ? `COALESCE(${m.team1Col},'')` : "''"} AS team1,
-                         ${m.team2Col   ? `COALESCE(${m.team2Col},'')` : "''"} AS team2
-                  FROM ${t.name}`;
-        });
-        rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];
+        const key = cacheKey(yearMin, yearMax);
+        const cached = flowsCache.get(key);
+        if (cached !== undefined) {
+          rows = cached;
+          if (DEBUG) console.info('[FLOWS] cache hit', key);
+        } else {
+          const parts = tables.map(t => {
+            const m = t.map;
+            return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
+                           ${m.dateCol} AS date,
+                           ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
+                           ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
+                           ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format,
+                           ${m.team1Col   ? `COALESCE(${m.team1Col},'')` : "''"} AS team1,
+                           ${m.team2Col   ? `COALESCE(${m.team2Col},'')` : "''"} AS team2
+                    FROM ${t.name}`;
+          });
+          rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];
+          flowsCache.set(key, rows);
+        }
       }
     } catch (e) {
       if (DEBUG) console.warn('computeFlows: DB query failed', e);
