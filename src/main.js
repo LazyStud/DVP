@@ -26,6 +26,7 @@ import { canonicalMapName }                           from './data/names.js';
 import * as Typology                                   from './data/typology.js';
 import { initDecadeChart }                             from './ui/decadeChart.js';
 import { initSearch }                                  from './ui/search.js';
+import { initInsightsFeed, showInsightsFeed }          from './ui/insightsFeed.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -288,6 +289,11 @@ if (insightsBtn) { insightsBtn.addEventListener('click', () => { try { openInsig
 
 // ── Global search (T-3.6) ────────────────────────────────────────────────────
 try { initSearch(); } catch (e) { if (DEBUG) console.warn('search init failed', e); }
+
+// ── Insights feed (T-3.7) ────────────────────────────────────────────────────
+try { initInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed init failed', e); }
+const insightsFeedBtn = document.getElementById('insightsFeedBtn');
+if (insightsFeedBtn) { insightsFeedBtn.addEventListener('click', () => { try { showInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed', e); } }); }
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;
