@@ -24,6 +24,7 @@ import { open as openInsights }                      from './ui/insights.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
 import * as Typology                                   from './data/typology.js';
+import { initDecadeChart }                             from './ui/decadeChart.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -228,6 +229,7 @@ async function recomputeAndDraw(yearMin, yearMax) {
 
 window._DB_URL = DB_URL;
 await DB.init(DB_URL);
+try { initDecadeChart(); } catch (e) { if (DEBUG) console.warn('decadeChart init failed', e); }
 resize();
 drawStaticLayers();
 drawCountries();

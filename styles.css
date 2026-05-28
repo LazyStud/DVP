@@ -108,6 +108,52 @@ body {
 }
 .cta:hover { filter: brightness(1.05); }
 
+/* ── Hero-right: decade chart panel ──────────────────────────────────────── */
+.hero-right {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+  padding: 8px 12px 12px;
+  display: flex;
+  align-items: stretch;
+  min-height: 260px;
+  pointer-events: auto;
+  position: relative;
+  z-index: 6;
+}
+
+.hero-right .dc-loading {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.hero-right .dc-error { color: var(--muted); opacity: 0.6; }
+
+.dc-svg { overflow: visible; }
+
+.dc-bar { transition: opacity 0.15s; }
+.dc-decade-hit:hover ~ .dc-bar { opacity: 0.85; }
+
+.dc-tooltip {
+  position: absolute;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  z-index: 10;
+  transition: opacity 0.1s;
+}
+
 /* While landing: make the globe small on the right (globe is outside .hero) */
 body.landing #globe {
   position: fixed;
@@ -762,6 +808,7 @@ body { background: transparent; }
     padding: 20px;
   }
   .hero-left { max-width: 100%; width: 100%; }
+  .hero-right { min-height: 200px; }
 
   /* Globe: centred at the bottom of the viewport on landing */
   body.landing #globe {
@@ -787,6 +834,7 @@ body { background: transparent; }
 @media (max-width: 640px) {
   /* Hide verbose bullet list — too much detail for small screens */
   .hero-points { display: none; }
+  .hero-right { display: none; }
   .hero { padding: 12px; }
 
   /* Smaller globe circle to leave room for hero text above */

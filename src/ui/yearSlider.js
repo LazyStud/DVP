@@ -57,6 +57,13 @@ export function syncSlider(min, max) {
   render(false);
 }
 
+/** Set range and fire yearrange:change — used by decadeChart click. */
+export function setRange(min, max) {
+  vL = clamp(Math.round(min), YEAR_MIN, YEAR_MAX);
+  vR = clamp(Math.round(max), YEAR_MIN, YEAR_MAX);
+  render(true);
+}
+
 function handleThumbKey(e, isLeft) {
   const step = e.shiftKey ? 5 : 1;
   switch (e.key) {

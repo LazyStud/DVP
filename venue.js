@@ -450,12 +450,12 @@
       // skip formats with no metrics or zero matches — don't draw misleading polygons
       if (!metrics || !metrics.matches_count) return;
       const vals = [
-        scales.bat_sr(metrics.batting_sr || 0),
-        scales.bat_avg(metrics.batting_avg || 0),
-        scales.boundary_pct(metrics.boundary_pct || 0),
-        scales.bowl_eco(metrics.bowling_econ || 99),
-        scales.bowl_avg(metrics.bowling_avg || 99),
-        scales.bowl_sr(metrics.bowling_sr || 999)
+        scales.bat_sr(metrics.batting_sr ?? 0),
+        scales.bat_avg(metrics.batting_avg ?? 0),
+        scales.boundary_pct(metrics.boundary_pct ?? 0),
+        scales.bowl_eco(metrics.bowling_econ ?? 99),
+        scales.bowl_avg(metrics.bowling_avg ?? 99),
+        scales.bowl_sr(metrics.bowling_sr ?? 999)
       ];
       g.append('path')
         .datum(vals)
@@ -572,15 +572,17 @@
     const cacheKey = JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format });
     if (_metricsCache.has(cacheKey)) {
       const cached = _metricsCache.get(cacheKey);
-      svgEl._metrics = cached;
-      svgEl.dataset.metrics = JSON.stringify(cached);
+      svgEl._metrics = cached.metrics;
+      svgEl.dataset.metrics = JSON.stringify(cached.metrics);
       drawRadar(svgEl);
-      // hide loading overlay
+      // restore raw rows so Evolution tab and format buttons work
+      try { panel._lastRows = cached.rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
+      try { drawEvolutionHeatmap(cached.rows, yrRange, format); } catch(e){ if (DEBUG) console.warn('evolution draw (cache) failed', e); }
       if (loadingOverlay) loadingOverlay.style.display = 'none';
       try {
         if (window.Typology && typologyChipEl) {
           const ctx = await window.Typology.loadContext();
-          const bf = (cached.byFormat) || {};
+          const bf = (cached.metrics && cached.metrics.byFormat) || {};
           const fmtKey = (format === 'all') ? pickDominantFormat(bf) : format;
           const m = bf[fmtKey];
           renderTypologyChip(m ? window.Typology.classify(
@@ -786,7 +788,7 @@
 
       svgEl._metrics = { byFormat }; svgEl.dataset.metrics = JSON.stringify({ byFormat });
       try { const diag = panel.querySelector('.venue-diag'); if (diag) diag.textContent = JSON.stringify(svgEl._metrics, null, 2); } catch(e){ reportError('nonfatal', e); }
-      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), svgEl._metrics); } catch(e){ reportError('nonfatal', e); }
+      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), { metrics: svgEl._metrics, rows }); } catch(e){ reportError('nonfatal', e); }
       drawRadar(svgEl);
       // hide loading overlay if present
       if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -988,21 +990,23 @@
           // tooltip
           if (v != null){
             cell.on('mouseenter', (ev) => {
+              document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove());
               const tip = document.createElement('div');
               tip.className = 'venue-heat-tip';
               tip.textContent = `${m.label} ${years[ci]}: ${typeof v==='number' ? (Math.round((v+Number.EPSILON)*100)/100) : v}`;
               document.body.appendChild(tip);
               const rect = ev.target.getBoundingClientRect();
               tip.style.left = `${rect.right + 8}px`; tip.style.top = `${rect.top}px`;
-              cell.on('mouseleave', () => { try{ tip.remove(); }catch(e){ reportError('nonfatal', e); } });
-            });
+            }).on('mouseleave', () => { document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove()); });
           }
         });
       });
 
-      // year labels on top
+      // year labels on top — skip labels that would overlap (need ~20px per label)
       const yearsG = g.append('g').attr('transform', `translate(0,${-6})`);
+      const labelEvery = Math.ceil(20 / Math.max(1, cellW));
       years.forEach((y, i) => {
+        if (i % labelEvery !== 0) return;
         const x = i * cellW + cellW/2;
         yearsG.append('text').attr('x', x).attr('y', -2).attr('font-size',10).attr('text-anchor','middle').attr('fill','var(--muted)').text(y);
       });
