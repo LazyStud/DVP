@@ -10,10 +10,11 @@ import {
   getPlayerYearBowling, getPlayerFormatBowling, getPlayerTopVenuesBowling,
 } from '../data/queries.js';
 
-let panel, titleEl, badgeEl, contentEl, exportBtn, yearRangeEl;
+let panel, titleEl, badgeEl, contentEl, exportBtn, yearRangeEl, fmtBar;
 let isOpen = false;
 let currentPlayer = null;
-let currentKind = 'batting'; // 'batting' | 'bowling'
+let currentKind   = 'batting'; // 'batting' | 'bowling'
+let currentFormat = 'all';     // 'all' | 'test' | 'odi' | 't20'
 let _prevFocus = null;
 
 // Donut colors matching venue radar legend
@@ -94,6 +95,18 @@ function ensurePanel() {
   tabBar.appendChild(tabDonut);
   tabBar.appendChild(tabVenues);
 
+  // ── Format filter chips (All / Test / ODI / T20) ─────────────────────────
+  fmtBar = document.createElement('div');
+  fmtBar.className = 'player-fmtbar';
+
+  for (const [label, value] of [['All', 'all'], ['Test', 'test'], ['ODI', 'odi'], ['T20', 't20']]) {
+    const btn = document.createElement('button');
+    btn.className = 'player-fmt-btn' + (value === 'all' ? ' active' : '');
+    btn.textContent = label;
+    btn.dataset.fmt = value;
+    fmtBar.appendChild(btn);
+  }
+
   // ── Kind toggle (Batting / Bowling) ─────────────────────────────────────
   const kindBar = document.createElement('div');
   kindBar.className = 'player-kindbar';
@@ -136,6 +149,7 @@ function ensurePanel() {
   panel.appendChild(header);
   panel.appendChild(kindBar);
   panel.appendChild(tabBar);
+  panel.appendChild(fmtBar);
   panel.appendChild(contentEl);
   document.body.appendChild(panel);
 
@@ -159,6 +173,15 @@ function ensurePanel() {
     renderCharts();
   });
 
+  // ── Format filter wiring ────────────────────────────────────────────────
+  fmtBar.addEventListener('click', ev => {
+    const btn = ev.target.closest('.player-fmt-btn');
+    if (!btn) return;
+    currentFormat = btn.dataset.fmt;
+    fmtBar.querySelectorAll('.player-fmt-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderCharts();
+  });
+
   // Keep open on its own clicks
   panel.addEventListener('pointerdown', e => e.stopPropagation());
   // Outside click closes
@@ -177,8 +200,9 @@ function ensurePanel() {
     const playerName = currentPlayer || 'Player';
     const safeName = playerName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const activeTab = panel.querySelector('.player-tab.active')?.dataset?.view || 'line';
+    const fmtLabel = currentFormat === 'all' ? '' : ` \u2022 ${currentFormat.toUpperCase()}`;
     window.exportSvgAsPng(svgEl, `cricket-${safeName}-${activeTab}.png`, {
-      title: `${playerName} \u2022 ${currentKind} \u2022 ${activeTab}`,
+      title: `${playerName} \u2022 ${currentKind}${fmtLabel} \u2022 ${activeTab}`,
       filters: yearRangeEl?.textContent || '',
     });
   });
@@ -201,6 +225,11 @@ export function openPlayer(playerName, team, kind = 'batting') {
   // Reset tab to first
   const tabs = panel.querySelectorAll('.player-tab');
   tabs.forEach(b => { b.classList.toggle('active', b === tabs[0]); b.setAttribute('aria-pressed', b === tabs[0] ? 'true' : 'false'); });
+
+  // Reset format filter to All
+  currentFormat = 'all';
+  fmtBar.querySelectorAll('.player-fmt-btn').forEach(b => b.classList.toggle('active', b.dataset.fmt === 'all'));
+  fmtBar.style.display = '';
 
   // Update year range
   const yr = window.__getYearRange?.() || { min: YEAR_MIN, max: YEAR_MAX };
@@ -256,15 +285,18 @@ async function renderCharts() {
   const infoRow = document.getElementById('playerInfoRow');
   if (!svgEl) return;
 
+  // Format filter is meaningless on the donut tab (it already shows format breakdown)
+  fmtBar.style.display = activeTab === 'donut' ? 'none' : '';
+
   // Show loading
   svgEl.innerHTML = '';
   if (infoRow) infoRow.innerHTML = '';
 
   try {
     if (currentKind === 'batting') {
-      await renderBattingView(activeTab, svgEl, yr.min, yr.max, infoRow);
+      await renderBattingView(activeTab, svgEl, yr.min, yr.max, infoRow, currentFormat);
     } else {
-      await renderBowlingView(activeTab, svgEl, yr.min, yr.max, infoRow);
+      await renderBowlingView(activeTab, svgEl, yr.min, yr.max, infoRow, currentFormat);
     }
   } catch (e) {
     if (DEBUG) console.warn('player chart render failed', e);
@@ -274,9 +306,9 @@ async function renderCharts() {
 
 // ── Batting views ───────────────────────────────────────────────────────────
 
-async function renderBattingView(view, svgEl, minYear, maxYear, infoRow) {
+async function renderBattingView(view, svgEl, minYear, maxYear, infoRow, format = 'all') {
   if (view === 'line') {
-    const data = await getPlayerYearBatting(currentPlayer, minYear, maxYear);
+    const data = await getPlayerYearBatting(currentPlayer, minYear, maxYear, format);
     if (!data.length) { svgEl.innerHTML = `<text x="190" y="110" text-anchor="middle" fill="var(--muted)" font-size="13">No batting data</text>`; return; }
     drawYearLine(svgEl, data, 'runs', 'sr', 'Runs', 'Strike Rate');
     if (infoRow) {
@@ -294,7 +326,7 @@ async function renderBattingView(view, svgEl, minYear, maxYear, infoRow) {
       infoRow.innerHTML = `<span>Total runs: ${total}</span>`;
     }
   } else if (view === 'venues') {
-    const data = await getPlayerTopVenues(currentPlayer, minYear, maxYear);
+    const data = await getPlayerTopVenues(currentPlayer, minYear, maxYear, format);
     if (!data.length) { svgEl.innerHTML = `<text x="190" y="110" text-anchor="middle" fill="var(--muted)" font-size="13">No venue data</text>`; return; }
     drawVenueBars(svgEl, data, 'runs', 'Runs');
     if (infoRow) {
@@ -305,9 +337,9 @@ async function renderBattingView(view, svgEl, minYear, maxYear, infoRow) {
 
 // ── Bowling views ───────────────────────────────────────────────────────────
 
-async function renderBowlingView(view, svgEl, minYear, maxYear, infoRow) {
+async function renderBowlingView(view, svgEl, minYear, maxYear, infoRow, format = 'all') {
   if (view === 'line') {
-    const data = await getPlayerYearBowling(currentPlayer, minYear, maxYear);
+    const data = await getPlayerYearBowling(currentPlayer, minYear, maxYear, format);
     if (!data.length) { svgEl.innerHTML = `<text x="190" y="110" text-anchor="middle" fill="var(--muted)" font-size="13">No bowling data</text>`; return; }
     drawYearLine(svgEl, data, 'wickets', 'econ', 'Wickets', 'Economy');
     if (infoRow) {
@@ -326,7 +358,7 @@ async function renderBowlingView(view, svgEl, minYear, maxYear, infoRow) {
       infoRow.innerHTML = `<span>Total wickets: ${total}</span>`;
     }
   } else if (view === 'venues') {
-    const data = await getPlayerTopVenuesBowling(currentPlayer, minYear, maxYear);
+    const data = await getPlayerTopVenuesBowling(currentPlayer, minYear, maxYear, format);
     if (!data.length) { svgEl.innerHTML = `<text x="190" y="110" text-anchor="middle" fill="var(--muted)" font-size="13">No venue data</text>`; return; }
     drawVenueBars(svgEl, data, 'wickets', 'Wickets');
     if (infoRow) {
@@ -436,7 +468,7 @@ function drawDonut(svgEl, data, key) {
 
 function drawVenueBars(svgEl, data, key, label) {
   const W = 380, H = 220;
-  const margin = { top: 10, right: 60, bottom: 10, left: 90 };
+  const margin = { top: 10, right: 60, bottom: 30, left: 90 };
   const iW = W - margin.left - margin.right;
   const iH = H - margin.top - margin.bottom;
   const root = d3.select(svgEl);

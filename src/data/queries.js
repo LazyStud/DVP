@@ -372,19 +372,21 @@ export async function loadVenuesForCountry(name) {
 
 // ── Player drill-down queries ────────────────────────────────────────────────
 
-export async function getPlayerYearBatting(playerName, minYear, maxYear) { try { const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.runs AS INT)) AS runs, SUM(CAST(bi.balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY year ORDER BY year`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ year: +r.year, runs: +r.runs || 0, balls: +r.balls || 0, matches: +r.matches || 0, sr: r.balls ? +((100 * +r.runs / +r.balls).toFixed(1)) : 0, avg: r.matches ? +((+r.runs / +r.matches).toFixed(2)) : 0 })); } catch (_) { return []; } }
+export async function getPlayerYearBatting(playerName, minYear, maxYear, format = 'all') { try { const patterns = Formats.formatLikePatterns(format); const fmtCond = patterns.length ? `AND (${patterns.map(() => `LOWER(COALESCE(m.format, bi.format, '')) LIKE ?`).join(' OR ')})` : ''; const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.runs AS INT)) AS runs, SUM(CAST(bi.balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? ${fmtCond} GROUP BY year ORDER BY year`, [playerName, minYear, maxYear, ...patterns]); return (rows || []).map(r => ({ year: +r.year, runs: +r.runs || 0, balls: +r.balls || 0, matches: +r.matches || 0, sr: r.balls ? +((100 * +r.runs / +r.balls).toFixed(1)) : 0, avg: r.matches ? +((+r.runs / +r.matches).toFixed(2)) : 0 })); } catch (_) { return []; } }
 export async function getPlayerFormatBatting(playerName) { try { const rows = DB.queryAll(`SELECT LOWER(COALESCE(m.format, bi.format, '')) AS fmt, SUM(CAST(bi.runs AS INT)) AS runs FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? GROUP BY fmt`, [playerName]); if (!rows || !rows.length) return []; const fmtMap = { test: 'Test', odi: 'ODI', t20: 'T20', t20i: 'T20', twenty20: 'T20', 't20 international': 'T20' }; const agg = new Map(); for (const r of rows) { const raw = String(r.fmt || '').trim(); if (!raw) continue; const label = fmtMap[raw] || (raw === 'odi' ? 'ODI' : raw === 'test' ? 'Test' : raw.includes('t20') ? 'T20' : null); if (!label) continue; agg.set(label, (agg.get(label) || 0) + (+r.runs || 0)); } const out = []; for (const [label, runs] of agg) out.push({ label, runs }); out.sort((a, b) => b.runs - a.runs); return out; } catch (_) { return []; } }
-export async function getPlayerTopVenues(playerName, minYear, maxYear, limit = 5) {
+export async function getPlayerTopVenues(playerName, minYear, maxYear, format = 'all', limit = 5) {
   try {
+    const patterns = Formats.formatLikePatterns(format);
+    const fmtCond = patterns.length ? `AND (${patterns.map(() => `LOWER(COALESCE(m.format, bi.format, '')) LIKE ?`).join(' OR ')})` : '';
     const rawRows = DB.queryAll(
       `SELECT COALESCE(m.venue_name, '') AS venue,
               SUM(CAST(bi.runs AS INT))       AS runs,
               COUNT(DISTINCT bi.match_id)     AS matches
        FROM batting_innings bi
        LEFT JOIN matches m ON bi.match_id = m.match_id
-       WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
+       WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? ${fmtCond}
        GROUP BY COALESCE(m.venue_name, '')`,
-      [playerName, minYear, maxYear]
+      [playerName, minYear, maxYear, ...patterns]
     ) || [];
     const canon = buildVenueCanonicalMap();
     const agg = new Map();
@@ -398,19 +400,21 @@ export async function getPlayerTopVenues(playerName, minYear, maxYear, limit = 5
     return Array.from(agg.values()).sort((a, b) => b.runs - a.runs).slice(0, limit);
   } catch (_) { return []; }
 }
-export async function getPlayerYearBowling(playerName, minYear, maxYear) { try { const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.wickets AS INT)) AS wickets, SUM(CAST(bi.runs_conceded AS INT)) AS runs_conceded, SUM(CAST(bi.legal_balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY year ORDER BY year`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ year: +r.year, wickets: +r.wickets || 0, runs_conceded: +r.runs_conceded || 0, balls: +r.balls || 0, matches: +r.matches || 0, econ: r.balls ? +((+r.runs_conceded / (+r.balls / 6)).toFixed(2)) : 0 })); } catch (_) { return []; } }
+export async function getPlayerYearBowling(playerName, minYear, maxYear, format = 'all') { try { const patterns = Formats.formatLikePatterns(format); const fmtCond = patterns.length ? `AND (${patterns.map(() => `LOWER(COALESCE(m.format, bi.format, '')) LIKE ?`).join(' OR ')})` : ''; const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.wickets AS INT)) AS wickets, SUM(CAST(bi.runs_conceded AS INT)) AS runs_conceded, SUM(CAST(bi.legal_balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? ${fmtCond} GROUP BY year ORDER BY year`, [playerName, minYear, maxYear, ...patterns]); return (rows || []).map(r => ({ year: +r.year, wickets: +r.wickets || 0, runs_conceded: +r.runs_conceded || 0, balls: +r.balls || 0, matches: +r.matches || 0, econ: r.balls ? +((+r.runs_conceded / (+r.balls / 6)).toFixed(2)) : 0 })); } catch (_) { return []; } }
 export async function getPlayerFormatBowling(playerName) { try { const rows = DB.queryAll(`SELECT LOWER(COALESCE(m.format, bi.format, '')) AS fmt, SUM(CAST(bi.wickets AS INT)) AS wickets FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? GROUP BY fmt`, [playerName]); if (!rows || !rows.length) return []; const fmtMap = { test: 'Test', odi: 'ODI', t20: 'T20', t20i: 'T20', twenty20: 'T20', 't20 international': 'T20' }; const agg = new Map(); for (const r of rows) { const raw = String(r.fmt || '').trim(); if (!raw) continue; const label = fmtMap[raw] || (raw === 'odi' ? 'ODI' : raw === 'test' ? 'Test' : raw.includes('t20') ? 'T20' : null); if (!label) continue; agg.set(label, (agg.get(label) || 0) + (+r.wickets || 0)); } const out = []; for (const [label, wickets] of agg) out.push({ label, wickets }); out.sort((a, b) => b.wickets - a.wickets); return out; } catch (_) { return []; } }
-export async function getPlayerTopVenuesBowling(playerName, minYear, maxYear, limit = 5) {
+export async function getPlayerTopVenuesBowling(playerName, minYear, maxYear, format = 'all', limit = 5) {
   try {
+    const patterns = Formats.formatLikePatterns(format);
+    const fmtCond = patterns.length ? `AND (${patterns.map(() => `LOWER(COALESCE(m.format, bi.format, '')) LIKE ?`).join(' OR ')})` : '';
     const rawRows = DB.queryAll(
       `SELECT COALESCE(m.venue_name, '') AS venue,
               SUM(CAST(bi.wickets AS INT))    AS wickets,
               COUNT(DISTINCT bi.match_id)     AS matches
        FROM bowling_innings bi
        LEFT JOIN matches m ON bi.match_id = m.match_id
-       WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
+       WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? ${fmtCond}
        GROUP BY COALESCE(m.venue_name, '')`,
-      [playerName, minYear, maxYear]
+      [playerName, minYear, maxYear, ...patterns]
     ) || [];
     const canon = buildVenueCanonicalMap();
     const agg = new Map();

@@ -82,7 +82,7 @@ export function initDecadeChart() {
   // ── Layout ────────────────────────────────────────────────────────────────
   const W = container.clientWidth  || 340;
   const H = container.clientHeight || 280;
-  const margin = { top: 28, right: 16, bottom: 48, left: 46 };
+  const margin = { top: 24, right: 14, bottom: 38, left: 42 };
   const innerW = W - margin.left - margin.right;
   const innerH = H - margin.top  - margin.bottom;
 
@@ -153,7 +153,7 @@ export function initDecadeChart() {
     .attr('font-size', 12)
     .attr('font-weight', '600')
     .attr('letter-spacing', '0.04em')
-    .text('MATCHES BY FORMAT & DECADE');
+    .text('MATCHES BY FORMAT & DECADE  •  click a bar to explore');
 
   // ── Bars ─────────────────────────────────────────────────────────────────
   const tooltip = d3.select(container)
@@ -220,7 +220,7 @@ export function initDecadeChart() {
     .style('pointer-events', 'none');
 
   // ── Legend ───────────────────────────────────────────────────────────────
-  const legendY = H - 14;
+  const legendY = H - 8;
   const legendSpacing = innerW / FORMATS.length;
   const legendG = svg.append('g')
     .attr('transform', `translate(${margin.left},${legendY})`);
@@ -239,13 +239,4 @@ export function initDecadeChart() {
       .text(FORMAT_LABELS[f]);
   });
 
-  // ── "Click to explore" hint ───────────────────────────────────────────────
-  svg.append('text')
-    .attr('x', W / 2)
-    .attr('y', H - 34)
-    .attr('text-anchor', 'middle')
-    .attr('fill', 'var(--muted)')
-    .attr('font-size', 10)
-    .attr('opacity', 0.7)
-    .text('click a bar to explore that decade');
 }

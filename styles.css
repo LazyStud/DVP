@@ -71,29 +71,199 @@ body {
 .hero {
   position: fixed;
   inset: 0;
-  display: grid;
-  grid-template-columns: 1fr min(48vw, 640px);
-  align-items: center;
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 14px;
   padding: 32px;
   z-index: 5;
   pointer-events: none;
 }
-.hero-left, .hero-right { pointer-events: auto; }
 
-.hero-left {
-  max-width: 720px;
+.hero-left, .hero-right {
+  pointer-events: auto;
+  width: min(460px, 42vw);
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   border-radius: 16px;
-  color: var(--text);
-  padding: 20px 22px;
   box-shadow: 0 30px 80px rgba(0,0,0,0.45);
 }
-.hero-left h1 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 40px); line-height: 1.1; }
-.hero-left p { margin: 0 0 10px; color: var(--muted); }
-.hero-points { margin: 8px 0 14px 20px; color: var(--text); }
-.hero-points li { margin: 4px 0; }
+
+.hero-left {
+  color: var(--text);
+  padding: 22px 24px 20px;
+}
+.hero-left h1 {
+  margin: 0 0 6px;
+  font-size: clamp(26px, 2.6vw, 38px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.hero-lede {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: clamp(14px, 1.05vw, 16px);
+  line-height: 1.45;
+}
+.hero-beats {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hero-beats li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.hero-beats li:hover { color: #fff; }
+.hero-beats li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.55em;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.85;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.hero-beats li:hover::before { opacity: 1; transform: scale(1.4); }
+.hero-beats li strong {
+  display: inline;
+  color: var(--text);
+  font-weight: 700;
+  margin-right: 4px;
+  transition: color 0.2s ease;
+}
+.hero-beats li:hover strong { color: var(--accent); }
+
+.hero-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.hero-cta-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+}
+
+.today-hook {
+  margin: 12px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--panel-border);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.today-hook::before {
+  content: "On this day";
+  display: block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+.today-hook.visible { opacity: 1; }
+
+.today-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+  margin-bottom: 3px;
+}
+.today-headline {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+.today-headline strong {
+  color: var(--accent);
+}
+.today-margin {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.today-pom {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.today-pom::before {
+  content: "\2605  ";
+  color: var(--accent);
+  font-size: 10px;
+}
+.today-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.today-count {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.5;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+.today-next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--accent);
+  background: rgba(255, 138, 0, 0.07);
+  border: 1px solid rgba(255, 138, 0, 0.22);
+  border-radius: 20px;
+  padding: 3px 10px 3px 9px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition:
+    background  0.2s ease,
+    border-color 0.2s ease,
+    box-shadow  0.2s ease,
+    transform   0.12s ease;
+}
+.today-next-btn::before {
+  content: "→";
+  display: inline-block;
+  margin-right: 5px;
+  transition: transform 0.2s ease;
+}
+.today-next-btn:hover {
+  background: rgba(255, 138, 0, 0.15);
+  border-color: rgba(255, 138, 0, 0.5);
+  box-shadow: 0 0 10px rgba(255, 138, 0, 0.18);
+}
+.today-next-btn:hover::before {
+  transform: translateX(3px);
+}
+.today-next-btn:active { transform: scale(0.93); }
+
+/* Light theme: recalculate pill tints against the lighter accent */
+[data-theme="light"] .today-next-btn {
+  background: rgba(201, 96, 0, 0.07);
+  border-color: rgba(201, 96, 0, 0.22);
+}
+[data-theme="light"] .today-next-btn:hover {
+  background: rgba(201, 96, 0, 0.14);
+  border-color: rgba(201, 96, 0, 0.5);
+  box-shadow: 0 0 10px rgba(201, 96, 0, 0.15);
+}
 
 .cta {
   display: inline-block;
@@ -102,23 +272,18 @@ body {
   font-weight: 700;
   border: none;
   border-radius: 12px;
-  padding: 10px 16px;
+  padding: 10px 18px;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(0,0,0,0.35);
 }
 .cta:hover { filter: brightness(1.05); }
 
-/* ── Hero-right: decade chart panel ──────────────────────────────────────── */
+/* ── Hero-right: decade chart panel (stacked under .hero-left) ───────────── */
 .hero-right {
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 16px;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
   padding: 8px 12px 12px;
   display: flex;
   align-items: stretch;
-  min-height: 260px;
-  pointer-events: auto;
+  min-height: 200px;
   position: relative;
   z-index: 6;
 }
@@ -134,7 +299,6 @@ body {
 .hero-right .dc-error { color: var(--muted); opacity: 0.6; }
 
 .dc-svg { overflow: visible; }
-
 .dc-bar { transition: opacity 0.15s; }
 .dc-decade-hit:hover ~ .dc-bar { opacity: 0.85; }
 
@@ -154,18 +318,149 @@ body {
   transition: opacity 0.1s;
 }
 
-/* While landing: make the globe small on the right (globe is outside .hero) */
+/* Narrow viewports: shrink the rail so globe still has breathing room */
+@media (max-width: 1100px) {
+  .hero-left, .hero-right { width: min(420px, 50vw); }
+  .hero { padding: 24px; }
+}
+@media (max-width: 720px) {
+  .hero { padding: 16px; gap: 10px; }
+  .hero-left, .hero-right { width: calc(100vw - 32px); }
+  body.landing #globe {
+    width: min(70vw, 360px) !important;
+    height: min(70vw, 360px) !important;
+    right: 16px !important;
+    top: auto !important;
+    bottom: 24px !important;
+    transform: none !important;
+    opacity: 0.5;
+  }
+}
+
+/* While landing: globe gets the full right half */
 body.landing #globe {
   position: fixed;
-  right: 32px;
+  right: 48px;
   top: 50%;
   transform: translateY(-50%);
-  width: min(48vw, 640px);
-  height: min(48vw, 640px);
+  width: min(52vw, 720px);
+  height: min(52vw, 720px);
   border-radius: 50%;
   box-shadow: 0 20px 60px rgba(0,0,0,0.45);
   overflow: hidden;
   z-index: 4;
+}
+
+/* ── Scroll-to-explore cue ──────────────────────────────────────────────── */
+.scroll-cue {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: scrollCueFadeIn 0.6s ease 2.4s forwards;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.scroll-cue-arrow {
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  animation: scrollCueBounce 1.6s ease-in-out 2.4s infinite;
+  opacity: 0.7;
+}
+@keyframes scrollCueFadeIn {
+  to { opacity: 0.55; }
+}
+@keyframes scrollCueBounce {
+  0%, 100% { margin-top: 0;    }
+  50%       { margin-top: 5px; }
+}
+@media (max-width: 720px) { .scroll-cue { display: none; } }
+
+/* ── Beat hover: smooth transitions on SVG layer groups ─────────────────── */
+#globe svg g.venues,
+#globe svg g.spikes,
+#globe svg g.flows,
+#globe svg g.bubbles {
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+/* Beat 2: stop the gentle pulse, blast host nations with a full glow */
+#globe.venues-peek svg g.spikes,
+#globe.venues-peek svg g.flows  { opacity: 0.08; }
+body.landing #globe.venues-peek .country.has-venues {
+  animation: none !important;
+  filter: drop-shadow(0 0 12px rgba(255, 200, 50, 0.95)) !important;
+}
+
+/* Spikes hidden on landing; CSS-animated in on beat 3 hover */
+body.landing .spikes {
+  opacity: 0;
+  transform: scale(0);
+  transform-origin: 50% 50%;
+  transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+}
+body.landing #globe.spikes-peek .spikes {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Beat 3: glow the spikes, pull back flows */
+#globe.spikes-peek svg g.flows  { opacity: 0.08; }
+#globe.spikes-peek svg g.spikes { filter: drop-shadow(0 0 6px rgba(255, 180, 40, 0.75)); }
+
+/* ── Globe preview label (appears during beat hover) ───────────────────── */
+.globe-preview-label {
+  position: absolute;
+  bottom: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 10, 20, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  white-space: nowrap;
+  z-index: 2;
+}
+.globe-preview-label.visible { opacity: 1; }
+
+/* ── Host-nation ambient pulse (landing only) ───────────────────────────── */
+@keyframes venuePulse {
+  0%, 100% { filter: drop-shadow(0 0 4px  rgba(255, 210, 60, 0.25)); }
+  50%       { filter: drop-shadow(0 0 14px rgba(255, 210, 60, 0.80)); }
+}
+body.landing .country.has-venues {
+  /* remove filter from the base transition — animation owns it now */
+  transition: transform 140ms ease, fill 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
+  animation: venuePulse 2.8s ease-in-out var(--vp-delay, 0s) infinite;
+}
+
+/* Hero fades while globe is expanding */
+body.landing-exit .hero {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 280ms ease !important;
 }
 
 /* When not landing, #globe goes fullscreen */
@@ -682,19 +977,7 @@ body::before{
 /* --- Make sure the globe doesn't paint an opaque bg --- */
 #globe, #globe svg { background: transparent; }
 
-/* --- If you still have `.hero-right #globe`, replace it with this: --- */
-body.landing #globe{
-  position: fixed;
-  right: 32px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: min(48vw, 640px);
-  height: min(48vw, 640px);
-  border-radius: 50%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-  overflow: hidden;
-  z-index: 4;
-}
+
 /* ===== Fixed background image layer ===== */
 #bgLayer{
   position: fixed;
@@ -1087,9 +1370,12 @@ body { background: transparent; }
 #player-window .player-kindbar { display:flex; gap:6px; margin:8px 0 4px; }
 #player-window .player-kind-btn { background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.06); padding:4px 10px; border-radius:8px; font-size:12px; cursor:pointer; }
 #player-window .player-kind-btn.active { background:linear-gradient(90deg, rgba(255,138,0,0.12), rgba(45,212,191,0.06)); color:var(--text); border-color:rgba(255,138,0,0.22); }
-#player-window .player-tabbar { display:flex; gap:8px; margin-bottom:6px; }
+#player-window .player-tabbar { display:flex; gap:8px; margin-bottom:4px; }
 #player-window .player-tab { background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.06); padding:5px 10px; border-radius:8px; font-size:12px; cursor:pointer; }
 #player-window .player-tab.active { background:linear-gradient(90deg, rgba(255,138,0,0.12), rgba(45,212,191,0.06)); color:var(--text); border-color:rgba(255,138,0,0.22); box-shadow:0 6px 18px rgba(0,0,0,0.28); }
+#player-window .player-fmtbar { display:flex; gap:5px; margin-bottom:6px; }
+#player-window .player-fmt-btn { background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.06); padding:2px 8px; border-radius:6px; font-size:10px; cursor:pointer; letter-spacing:0.03em; }
+#player-window .player-fmt-btn.active { background:rgba(45,212,191,0.12); color:var(--text); border-color:rgba(45,212,191,0.28); }
 #player-window .player-content { display:flex; flex-direction:column; gap:8px; }
 #player-window .player-info-row { display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem; color:var(--muted); padding:4px 0; }
 #player-window .player-info-row span { white-space:nowrap; }
