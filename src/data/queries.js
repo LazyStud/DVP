@@ -2,12 +2,43 @@
  * After calling compute*, callers in main.js trigger the draw functions.
  * Accesses globals: DB (db.js), Formats (formats.js), d3 (CDN).
  */
+import { DEBUG }                          from '../debug.js';
 import { state }                          from '../state.js';
 import {
   canonicalMapName, canonicalTeamName, hostToHomeTeamCountry,
   WINNER_SYNS, DATE_SYNS, HOST_SYNS, NEUTRAL_SYNS, RESULT_SYNS, FORMAT_SYNS,
+  TEAM1_SYNS, TEAM2_SYNS,
 } from './names.js';
 import { aggregateChoropleth } from './choropleth.js';
+import { LRU, cacheKey } from './lru.js';
+import { wilsonInterval } from './stats.js';
+
+// ── LRU caches for expensive SQL queries ─────────────────────────────────────
+
+const choroCache = new LRU(12);
+const flowsCache = new LRU(12);
+
+// ── Venue canonical-name helper ───────────────────────────────────────────────
+// Returns Map<historicalNameLower → canonicalName> built from the venues table.
+// Used wherever a query groups by raw venue_name and needs to merge renamed venues.
+function buildVenueCanonicalMap() {
+  const map = new Map();
+  try {
+    const rows = DB.queryAll('SELECT venue, names FROM venues') || [];
+    for (const row of rows) {
+      const canonical = String(row.venue || '').trim();
+      if (!canonical) continue;
+      map.set(canonical.toLowerCase(), canonical);
+      if (row.names) {
+        String(row.names).split(';').forEach(n => {
+          const name = n.trim().toLowerCase();
+          if (name) map.set(name, canonical);
+        });
+      }
+    }
+  } catch (_) {}
+  return map;
+}
 
 // ── Schema cache ─────────────────────────────────────────────────────────────
 
@@ -49,6 +80,8 @@ export function loadMatchTables() {
         neutralCol: NEUTRAL_SYNS.find(c => cols.includes(c)),
         resultCol:  RESULT_SYNS.find(c  => cols.includes(c)),
         formatCol:  FORMAT_SYNS.find(c  => cols.includes(c)),
+        team1Col:   TEAM1_SYNS.find(c  => cols.includes(c)),
+        team2Col:   TEAM2_SYNS.find(c  => cols.includes(c)),
       }});
     }
   }
@@ -63,20 +96,28 @@ export async function computeChoropleth(yearMin, yearMax) {
   const tables = loadMatchTables();
   let rows = [];
   if (tables.length) {
-    try {
-      const parts = tables.map(t => {
-        const m = t.map;
-        return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
-                       ${m.dateCol} AS date,
-                       ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
-                       ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
-                       ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format
-                FROM ${t.name}`;
-      });
-      rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]);
-    } catch (e) {
-      if (DEBUG) console.warn('[CHORO] Query failed:', e);
-      rows = [];
+    const key = cacheKey(yearMin, yearMax);
+    const cached = choroCache.get(key);
+    if (cached !== undefined) {
+      rows = cached;
+      if (DEBUG) console.info('[CHORO] cache hit', key);
+    } else {
+      try {
+        const parts = tables.map(t => {
+          const m = t.map;
+          return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
+                         ${m.dateCol} AS date,
+                         ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
+                         ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
+                         ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format
+                  FROM ${t.name}`;
+        });
+        rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]);
+        choroCache.set(key, rows);
+      } catch (e) {
+        if (DEBUG) console.warn('[CHORO] Query failed:', e);
+        rows = [];
+      }
     }
   }
 
@@ -107,17 +148,26 @@ export async function computeFlows(yearMin, yearMax) {
     try {
       const tables = loadMatchTables();
       if (tables.length) {
-        const parts = tables.map(t => {
-          const m = t.map;
-          return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
-                         ${m.dateCol} AS date,
-                         ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
-                         ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
-                         ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format,
-                         NULL AS team1, NULL AS team2
-                  FROM ${t.name}`;
-        });
-        rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];
+        const key = cacheKey(yearMin, yearMax);
+        const cached = flowsCache.get(key);
+        if (cached !== undefined) {
+          rows = cached;
+          if (DEBUG) console.info('[FLOWS] cache hit', key);
+        } else {
+          const parts = tables.map(t => {
+            const m = t.map;
+            return `SELECT ${m.winnerCol} AS winner, ${m.hostCol} AS venue_country,
+                           ${m.dateCol} AS date,
+                           ${m.neutralCol ? `COALESCE(${m.neutralCol},0)` : '0'} AS neutral_venue,
+                           ${m.resultCol  ? `COALESCE(${m.resultCol},'')` : "''"} AS result_type,
+                           ${m.formatCol  ? `COALESCE(${m.formatCol},'')` : "''"} AS format,
+                           ${m.team1Col   ? `COALESCE(${m.team1Col},'')` : "''"} AS team1,
+                           ${m.team2Col   ? `COALESCE(${m.team2Col},'')` : "''"} AS team2
+                    FROM ${t.name}`;
+          });
+          rows = DB.queryAll(`SELECT * FROM (${parts.join(' UNION ALL ')}) WHERE ${yClause()}`, [yearMin, yearMax]) || [];
+          flowsCache.set(key, rows);
+        }
       }
     } catch (e) {
       if (DEBUG) console.warn('computeFlows: DB query failed', e);
@@ -316,6 +366,404 @@ export async function loadVenuesForCountry(name) {
     });
   } catch (e) {
     if (DEBUG) console.warn('loadVenuesForCountry failed', e);
+    return [];
+  }
+}
+
+// ── Player drill-down queries ────────────────────────────────────────────────
+
+export async function getPlayerYearBatting(playerName, minYear, maxYear) { try { const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.runs AS INT)) AS runs, SUM(CAST(bi.balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY year ORDER BY year`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ year: +r.year, runs: +r.runs || 0, balls: +r.balls || 0, matches: +r.matches || 0, sr: r.balls ? +((100 * +r.runs / +r.balls).toFixed(1)) : 0, avg: r.matches ? +((+r.runs / +r.matches).toFixed(2)) : 0 })); } catch (_) { return []; } }
+export async function getPlayerFormatBatting(playerName) { try { const rows = DB.queryAll(`SELECT LOWER(COALESCE(m.format, bi.format, '')) AS fmt, SUM(CAST(bi.runs AS INT)) AS runs FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? GROUP BY fmt`, [playerName]); if (!rows || !rows.length) return []; const fmtMap = { test: 'Test', odi: 'ODI', t20: 'T20', t20i: 'T20', twenty20: 'T20', 't20 international': 'T20' }; const agg = new Map(); for (const r of rows) { const raw = String(r.fmt || '').trim(); if (!raw) continue; const label = fmtMap[raw] || (raw === 'odi' ? 'ODI' : raw === 'test' ? 'Test' : raw.includes('t20') ? 'T20' : null); if (!label) continue; agg.set(label, (agg.get(label) || 0) + (+r.runs || 0)); } const out = []; for (const [label, runs] of agg) out.push({ label, runs }); out.sort((a, b) => b.runs - a.runs); return out; } catch (_) { return []; } }
+export async function getPlayerTopVenues(playerName, minYear, maxYear, limit = 5) {
+  try {
+    const rawRows = DB.queryAll(
+      `SELECT COALESCE(m.venue_name, '') AS venue,
+              SUM(CAST(bi.runs AS INT))       AS runs,
+              COUNT(DISTINCT bi.match_id)     AS matches
+       FROM batting_innings bi
+       LEFT JOIN matches m ON bi.match_id = m.match_id
+       WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
+       GROUP BY COALESCE(m.venue_name, '')`,
+      [playerName, minYear, maxYear]
+    ) || [];
+    const canon = buildVenueCanonicalMap();
+    const agg = new Map();
+    for (const r of rawRows) {
+      const key = canon.get(String(r.venue || '').toLowerCase().trim()) || r.venue || 'Unknown';
+      const cur = agg.get(key) || { venue: key, runs: 0, matches: 0 };
+      cur.runs    += +r.runs    || 0;
+      cur.matches += +r.matches || 0;
+      agg.set(key, cur);
+    }
+    return Array.from(agg.values()).sort((a, b) => b.runs - a.runs).slice(0, limit);
+  } catch (_) { return []; }
+}
+export async function getPlayerYearBowling(playerName, minYear, maxYear) { try { const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.wickets AS INT)) AS wickets, SUM(CAST(bi.runs_conceded AS INT)) AS runs_conceded, SUM(CAST(bi.legal_balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY year ORDER BY year`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ year: +r.year, wickets: +r.wickets || 0, runs_conceded: +r.runs_conceded || 0, balls: +r.balls || 0, matches: +r.matches || 0, econ: r.balls ? +((+r.runs_conceded / (+r.balls / 6)).toFixed(2)) : 0 })); } catch (_) { return []; } }
+export async function getPlayerFormatBowling(playerName) { try { const rows = DB.queryAll(`SELECT LOWER(COALESCE(m.format, bi.format, '')) AS fmt, SUM(CAST(bi.wickets AS INT)) AS wickets FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? GROUP BY fmt`, [playerName]); if (!rows || !rows.length) return []; const fmtMap = { test: 'Test', odi: 'ODI', t20: 'T20', t20i: 'T20', twenty20: 'T20', 't20 international': 'T20' }; const agg = new Map(); for (const r of rows) { const raw = String(r.fmt || '').trim(); if (!raw) continue; const label = fmtMap[raw] || (raw === 'odi' ? 'ODI' : raw === 'test' ? 'Test' : raw.includes('t20') ? 'T20' : null); if (!label) continue; agg.set(label, (agg.get(label) || 0) + (+r.wickets || 0)); } const out = []; for (const [label, wickets] of agg) out.push({ label, wickets }); out.sort((a, b) => b.wickets - a.wickets); return out; } catch (_) { return []; } }
+export async function getPlayerTopVenuesBowling(playerName, minYear, maxYear, limit = 5) {
+  try {
+    const rawRows = DB.queryAll(
+      `SELECT COALESCE(m.venue_name, '') AS venue,
+              SUM(CAST(bi.wickets AS INT))    AS wickets,
+              COUNT(DISTINCT bi.match_id)     AS matches
+       FROM bowling_innings bi
+       LEFT JOIN matches m ON bi.match_id = m.match_id
+       WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
+       GROUP BY COALESCE(m.venue_name, '')`,
+      [playerName, minYear, maxYear]
+    ) || [];
+    const canon = buildVenueCanonicalMap();
+    const agg = new Map();
+    for (const r of rawRows) {
+      const key = canon.get(String(r.venue || '').toLowerCase().trim()) || r.venue || 'Unknown';
+      const cur = agg.get(key) || { venue: key, wickets: 0, matches: 0 };
+      cur.wickets += +r.wickets || 0;
+      cur.matches += +r.matches || 0;
+      agg.set(key, cur);
+    }
+    return Array.from(agg.values()).sort((a, b) => b.wickets - a.wickets).slice(0, limit);
+  } catch (_) { return []; }
+}
+
+// ── Head-to-head comparison queries (T-3.2) ───────────────────────────────────
+
+// Build a "AND (LOWER(<col>) LIKE ? OR ...)" fragment for the given format key.
+// Returns { sql, params }; sql is '' (no params) when format matches everything.
+function buildFormatCond(format, col = 'm.format') {
+  const patterns = Formats.formatLikePatterns(format);
+  if (!patterns.length) return { sql: '', params: [] };
+  const sql = `AND (${patterns.map(() => `LOWER(${col}) LIKE ?`).join(' OR ')})`;
+  return { sql, params: patterns };
+}
+
+// Standard "either team1=A & team2=B, or swapped" clause + its params.
+function pairingClause(teamA, teamB) {
+  return {
+    sql: '((m.team1 = ? AND m.team2 = ?) OR (m.team1 = ? AND m.team2 = ?))',
+    params: [teamA, teamB, teamB, teamA],
+  };
+}
+
+function yearBetween() { return 'CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?'; }
+
+export async function getHeadToHeadStats(teamA, teamB, minYear, maxYear, format = 'all') {
+  const empty = { winsA: 0, winsB: 0, draws: 0, noResult: 0, total: 0 };
+  try {
+    const fmt = buildFormatCond(format);
+    const pair = pairingClause(teamA, teamB);
+    const rows = DB.queryAll(`
+      SELECT m.winner, m.result_type, COUNT(*) AS total
+      FROM matches m
+      WHERE ${yearBetween()} AND ${pair.sql} ${fmt.sql}
+      GROUP BY m.winner, m.result_type
+    `, [minYear, maxYear, ...pair.params, ...fmt.params]);
+    if (!rows) return empty;
+
+    let winsA = 0, winsB = 0, draws = 0, noResult = 0;
+    for (const r of rows) {
+      const winner = String(r.winner || '').trim();
+      const rt = String(r.result_type || '').toLowerCase();
+      const n = +r.total || 0;
+      if (rt.includes('no result') || rt === 'abandoned')     noResult += n;
+      else if (rt === 'draw' || rt === 'tie' || rt === 'tied') draws    += n;
+      else if (winner === teamA)                               winsA    += n;
+      else if (winner === teamB)                               winsB    += n;
+      else                                                     draws    += n;
+    }
+    return { winsA, winsB, draws, noResult, total: winsA + winsB + draws + noResult };
+  } catch (e) {
+    if (DEBUG) console.warn('getHeadToHeadStats failed', e);
+    return empty;
+  }
+}
+
+// Biggest wins per team. Queried separately so one team's blowouts can't crowd
+// out the other's. Sorted by a "dominance score" that mixes runs- and wickets-
+// wins on the same axis: a 10-wicket chase beats a 30-run squeaker; a 400-run
+// blowout still tops everything.
+//   runs    -> score = margin               (0..~500)
+//   wickets -> score = margin^2 * 4         (10w=400, 5w=100, 1w=4)
+// (Limitation: the dataset doesn't tag "innings and N runs" wins separately —
+// they're stored as result_type='runs', so we treat them as regular runs wins.)
+export async function getHeadToHeadBiggestWins(teamA, teamB, minYear, maxYear, format = 'all') {
+  const empty = { bestA: [], bestB: [] };
+  try {
+    const fmt = buildFormatCond(format);
+    const pair = pairingClause(teamA, teamB);
+
+    const fetchFor = (winner) => DB.queryAll(`
+      SELECT m.winner, m.result_type, m.win_margin, m.date, m.venue_name
+      FROM matches m
+      WHERE ${yearBetween()}
+        AND ${pair.sql}
+        AND m.winner = ?
+        AND LOWER(COALESCE(m.result_type, '')) IN ('runs', 'wickets')
+        AND m.win_margin IS NOT NULL AND m.win_margin <> ''
+        ${fmt.sql}
+    `, [minYear, maxYear, ...pair.params, winner, ...fmt.params]) || [];
+
+    const toEntries = (rows) => rows
+      .map(r => ({
+        winner: r.winner,
+        result: String(r.result_type || '').toLowerCase(),
+        margin: +r.win_margin || 0,
+        date:   r.date,
+        venue:  r.venue_name,
+      }))
+      .sort((a, b) => dominanceScore(b) - dominanceScore(a))
+      .slice(0, 3);
+
+    return { bestA: toEntries(fetchFor(teamA)), bestB: toEntries(fetchFor(teamB)) };
+  } catch (e) {
+    if (DEBUG) console.warn('getHeadToHeadBiggestWins failed', e);
+    return empty;
+  }
+}
+
+function dominanceScore(win) {
+  if (win.result === 'runs')    return win.margin;
+  if (win.result === 'wickets') return win.margin * win.margin * 4;
+  return 0;
+}
+
+export async function getHeadToHeadTopPlayers(teamA, teamB, minYear, maxYear, format = 'all') {
+  const empty = { batters: [], bowlers: [] };
+  try {
+    const fmt = buildFormatCond(format, "COALESCE(m.format, bi.format, '')");
+    const pair = pairingClause(teamA, teamB);
+    const baseParams = [minYear, maxYear, ...pair.params, teamA, teamB, ...fmt.params];
+
+    const topBatters = DB.queryAll(`
+      SELECT bi.batter AS player, bi.team,
+             SUM(CAST(bi.runs AS INT))    AS runs,
+             COUNT(DISTINCT bi.match_id)  AS matches
+      FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id
+      WHERE ${yearBetween()} AND ${pair.sql} AND bi.team IN (?, ?) ${fmt.sql}
+      GROUP BY bi.batter, bi.team
+      ORDER BY runs DESC LIMIT 10
+    `, baseParams) || [];
+
+    const topBowlers = DB.queryAll(`
+      SELECT bi.bowler AS player, bi.team,
+             SUM(CAST(bi.wickets AS INT)) AS wickets,
+             COUNT(DISTINCT bi.match_id)  AS matches
+      FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id
+      WHERE ${yearBetween()} AND ${pair.sql} AND bi.team IN (?, ?) ${fmt.sql}
+      GROUP BY bi.bowler, bi.team
+      ORDER BY wickets DESC LIMIT 10
+    `, baseParams) || [];
+
+    return {
+      batters: topBatters.map(r => ({ player: r.player, team: r.team, runs:    +r.runs    || 0, matches: +r.matches || 0 })),
+      bowlers: topBowlers.map(r => ({ player: r.player, team: r.team, wickets: +r.wickets || 0, matches: +r.matches || 0 })),
+    };
+  } catch (e) {
+    if (DEBUG) console.warn('getHeadToHeadTopPlayers failed', e);
+    return empty;
+  }
+}
+
+// ── Toss impact analysis (T-3.3) ─────────────────────────────────────────────
+
+/**
+ * Per-venue toss stats: for each format, count decided matches and
+ * batting-first wins, with Wilson 95% CI.
+ * @param {string[]} aliases - LIKE patterns for venue_name matching
+ * @param {{min:number,max:number}} yrRange
+ * @param {string} format - 'all' | 'test' | 'odi' | 't20'
+ * @returns {Promise<{byFormat:{test:{decided, battingFirstWins, pct, lo, hi}, odi:{...}, t20:{...}}}>}
+ */
+export async function getVenueTossStats(aliases, yrRange, format = 'all') {
+  await DB.init(window._DB_URL || './data/db/cricket.db');
+
+  // Expand aliases via the DB's venues table to pick up historical names
+  // (e.g. "sky stadium" → also "westpac stadium"). The venues table has a
+  // `names` column with semicolon-separated historical names for each ground.
+  const expandedSet = new Set((aliases || []).map(a => String(a).toLowerCase().trim()));
+  try {
+    if (expandedSet.size > 0) {
+      const aliasArr = Array.from(expandedSet);
+      const likeFrags = aliasArr.flatMap(() => [`LOWER(venue) LIKE ?`, `LOWER(names) LIKE ?`]).join(' OR ');
+      const likeParams = aliasArr.flatMap(a => [`%${a}%`, `%${a}%`]);
+      const venueRows = DB.queryAll(`SELECT names FROM venues WHERE ${likeFrags}`, likeParams) || [];
+      for (const row of venueRows) {
+        if (row.names) {
+          String(row.names).split(';').map(n => n.trim().toLowerCase()).filter(Boolean)
+            .forEach(n => expandedSet.add(n));
+        }
+      }
+    }
+  } catch (e) {
+    if (DEBUG) console.warn('getVenueTossStats alias expansion failed', e);
+  }
+
+  const allAliases = Array.from(expandedSet);
+  const likeExprs = allAliases.length
+    ? allAliases.map(() => `LOWER(COALESCE(vsf.venue_name, '')) LIKE ?`).join(' OR ')
+    : '1=0';
+
+  const formats = ['test', 'odi', 't20'];
+  const byFormat = {};
+
+  for (const fmt of formats) {
+    const fmtPatterns = Formats.formatLikePatterns(fmt);
+    const fmtCond = fmtPatterns.length
+      ? `AND (${fmtPatterns.map(() => `LOWER(COALESCE(vsf.format,'')) LIKE ?`).join(' OR ')})`
+      : '';
+    const params = [yrRange.min, yrRange.max, ...allAliases.map(a => `%${a}%`), ...fmtPatterns];
+
+    let rows = [];
+    try {
+      // Use venue_stats_format which has first_bat_wins/matches_with_result pre-aggregated
+      // and uses the same raw venue names as the matches table.
+      rows = DB.queryAll(`
+        SELECT SUM(vsf.matches_with_result) AS decided,
+               SUM(vsf.first_bat_wins)      AS wins
+        FROM venue_stats_format vsf
+        WHERE vsf.year BETWEEN ? AND ?
+          AND (${likeExprs})
+          ${fmtCond}
+      `, params) || [];
+    } catch (e) {
+      if (DEBUG) console.warn('getVenueTossStats query failed for', fmt, e);
+      byFormat[fmt] = { decided: 0, battingFirstWins: 0, pct: null, lo: null, hi: null };
+      continue;
+    }
+
+    const decided = Number(rows[0]?.decided || 0);
+    const wins    = Number(rows[0]?.wins    || 0);
+    const ci = wilsonInterval(wins, decided);
+    byFormat[fmt] = { decided, battingFirstWins: wins, pct: ci.p, lo: ci.lo, hi: ci.hi };
+  }
+
+  return { byFormat };
+}
+
+/**
+ * Global venue toss-bias ranking across all venues, sorted by Wilson CI lower bound.
+ * @param {{min:number,max:number}} yrRange
+ * @param {string} format - 'all' | 'test' | 'odi' | 't20'
+ * @param {number} [minMatches=20]
+ * @returns {Promise<{top10:Array, bottom10:Array, total:number}>}
+ */
+export async function getVenueTossBias(yrRange, format = 'all', minMatches = 20) {
+  await DB.init(window._DB_URL || './data/db/cricket.db');
+
+  const historicalToCanonical = buildVenueCanonicalMap();
+
+  const fmtPatterns = Formats.formatLikePatterns(format);
+  const fmtCond = fmtPatterns.length
+    ? `AND (${fmtPatterns.map(() => `LOWER(COALESCE(vsf.format,'')) LIKE ?`).join(' OR ')})`
+    : '';
+
+  let rawRows = [];
+  try {
+    const sql = `
+      SELECT vsf.venue_name,
+             SUM(vsf.first_bat_wins)      AS bf_wins,
+             SUM(vsf.matches_with_result) AS total
+      FROM venue_stats_format vsf
+      WHERE vsf.year BETWEEN ? AND ?
+        ${fmtCond}
+      GROUP BY vsf.venue_name
+    `;
+    rawRows = DB.queryAll(sql, [yrRange.min, yrRange.max, ...fmtPatterns]) || [];
+  } catch (e) {
+    if (DEBUG) console.warn('getVenueTossBias failed', e);
+    return { top10: [], bottom10: [], total: 0 };
+  }
+
+  // Re-aggregate by canonical name in JS
+  const byCanonical = new Map();
+  for (const r of rawRows) {
+    const rawName  = String(r.venue_name || '').trim();
+    const canonical = historicalToCanonical.get(rawName.toLowerCase()) || rawName;
+    const existing = byCanonical.get(canonical) || { venue: canonical, bf_wins: 0, total: 0 };
+    existing.bf_wins += Number(r.bf_wins || 0);
+    existing.total   += Number(r.total   || 0);
+    byCanonical.set(canonical, existing);
+  }
+
+  const enriched = [];
+  for (const agg of byCanonical.values()) {
+    if (agg.total < minMatches) continue;
+    enriched.push({
+      venue: agg.venue,
+      wins:  agg.bf_wins,
+      n:     agg.total,
+      pct:   agg.total ? agg.bf_wins / agg.total : 0,
+      ...wilsonInterval(agg.bf_wins, agg.total),
+    });
+  }
+
+  const top10    = enriched.slice().sort((a, b) => b.pct - a.pct).slice(0, 10);
+  const bottom10 = enriched.slice().sort((a, b) => a.pct - b.pct).slice(0, 10);
+
+  return { top10, bottom10, total: enriched.length };
+}
+
+// ── Search index queries ──────────────────────────────────────────────────────
+
+export async function getAllSearchVenues() {
+  await DB.init(window._DB_URL || './data/db/cricket.db');
+  const schema = await getVenueSchema();
+  if (!schema) return [];
+  try {
+    const latCol  = schema.latCol  || 'latitude';
+    const lonCol  = schema.lonCol  || 'longitude';
+    const ctyCol  = schema.countryCol || 'country';
+    const rows = DB.queryAll(
+      `SELECT venue,
+              COALESCE(city, '') AS city,
+              COALESCE(${ctyCol}, '') AS country,
+              ${latCol}  AS latitude,
+              ${lonCol}  AS longitude
+       FROM venues
+       WHERE ${latCol} IS NOT NULL AND ${lonCol} IS NOT NULL
+       ORDER BY venue`
+    ) || [];
+    return rows.map(r => ({
+      venue:     String(r.venue     || '').trim(),
+      city:      String(r.city      || '').trim(),
+      country:   String(r.country   || '').trim(),
+      latitude:  +r.latitude,
+      longitude: +r.longitude,
+    })).filter(r => r.venue && isFinite(r.latitude) && isFinite(r.longitude));
+  } catch (e) {
+    if (DEBUG) console.warn('getAllSearchVenues failed', e);
+    return [];
+  }
+}
+
+export async function getAllSearchPlayers() {
+  await DB.init(window._DB_URL || './data/db/cricket.db');
+  try {
+    const batters = DB.queryAll(
+      `SELECT batter AS name, team, 'batting' AS kind
+       FROM batting_innings
+       GROUP BY batter, team
+       HAVING COUNT(*) >= 5
+       ORDER BY name`
+    ) || [];
+    const bowlers = DB.queryAll(
+      `SELECT bowler AS name, team, 'bowling' AS kind
+       FROM bowling_innings
+       GROUP BY bowler, team
+       HAVING COUNT(*) >= 5
+       ORDER BY name`
+    ) || [];
+    // Deduplicate: keep batting entry if player appears in both
+    const seen = new Set();
+    const out = [];
+    for (const r of [...batters, ...bowlers]) {
+      const key = String(r.name || '').trim().toLowerCase();
+      if (!key || seen.has(key + r.kind)) continue;
+      seen.add(key + r.kind);
+      out.push({ name: String(r.name).trim(), team: String(r.team || '').trim(), kind: r.kind });
+    }
+    return out;
+  } catch (e) {
+    if (DEBUG) console.warn('getAllSearchPlayers failed', e);
     return [];
   }
 }

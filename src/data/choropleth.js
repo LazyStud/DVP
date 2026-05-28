@@ -18,6 +18,7 @@ export function aggregateChoropleth(rows, yearMin, yearMax, { canonicalMapName, 
     if (!agg.has(key)) {
       agg.set(key, {
         matches: 0, homeWins: 0,
+        byYear: {},
         formats: {
           all:  { matches: 0, homeWins: 0 },
           odi:  { matches: 0, homeWins: 0 },
@@ -44,6 +45,7 @@ export function aggregateChoropleth(rows, yearMin, yearMax, { canonicalMapName, 
 
     const rec = ensureRec(hostKey);
     rec.matches += 1;
+    rec.byYear[y] = (rec.byYear[y] || 0) + 1;
     if (win) rec.homeWins += 1;
 
     const fmt = normalizeFormat(r.format);

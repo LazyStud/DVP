@@ -1,0 +1,333 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" shape-rendering="geometricPrecision">
+  <defs>
+    <!-- field grass: bright center, deeper at edges -->
+    <radialGradient id="cs-field" cx="50%" cy="42%" r="62%">
+      <stop offset="0%"  stop-color="#9ddc78"/>
+      <stop offset="55%" stop-color="#4ea84a"/>
+      <stop offset="100%" stop-color="#1b4a1d"/>
+    </radialGradient>
+    <!-- white plinth/wall gradient (top bright, bottom shadowed) -->
+    <linearGradient id="cs-wall" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#f6f8fc"/>
+      <stop offset="55%" stop-color="#d3dae6"/>
+      <stop offset="100%" stop-color="#7c8696"/>
+    </linearGradient>
+    <!-- inner ring (the upper rim where roof meets stand) -->
+    <linearGradient id="cs-ring" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#4a5462"/>
+      <stop offset="50%"  stop-color="#cbd3e1"/>
+      <stop offset="100%" stop-color="#4a5462"/>
+    </linearGradient>
+    <!-- teal roof petal gradient -->
+    <linearGradient id="cs-roof" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#2da6a3"/>
+      <stop offset="100%" stop-color="#0e5957"/>
+    </linearGradient>
+    <!-- red seating tiers -->
+    <radialGradient id="cs-seats" cx="50%" cy="50%" r="55%">
+      <stop offset="0%"   stop-color="#7a2424"/>
+      <stop offset="60%"  stop-color="#a3382b"/>
+      <stop offset="100%" stop-color="#581a1a"/>
+    </radialGradient>
+    <!-- pitch -->
+    <linearGradient id="cs-pitch" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#f1d9a0"/>
+      <stop offset="100%" stop-color="#a8804a"/>
+    </linearGradient>
+    <!-- floodlight lamp -->
+    <linearGradient id="cs-lamp" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#fff7c6"/>
+      <stop offset="50%"  stop-color="#ffd84a"/>
+      <stop offset="100%" stop-color="#b78318"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ground shadow -->
+  <ellipse cx="100" cy="100" rx="94" ry="5" fill="#000" opacity="0.30"/>
+
+  <!-- back-half floodlights (behind structure) -->
+  
+  <g>
+    <line x1="18.0" y1="61.3" x2="17.0" y2="25.3" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="18.0" y1="61.3" x2="17.0" y2="25.3" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(17.0 25.3)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="18.0" cy="61.3" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+
+  <g>
+    <line x1="85.6" y1="46.3" x2="85.4" y2="8.3" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="85.6" y1="46.3" x2="85.4" y2="8.3" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(85.4 8.3)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="85.6" cy="46.3" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+
+  <g>
+    <line x1="114.4" y1="46.3" x2="114.6" y2="8.3" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="114.4" y1="46.3" x2="114.6" y2="8.3" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(114.6 8.3)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="114.4" cy="46.3" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+
+  <g>
+    <line x1="182.0" y1="61.3" x2="183.0" y2="25.3" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="182.0" y1="61.3" x2="183.0" y2="25.3" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(183.0 25.3)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="182.0" cy="61.3" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+
+  <!-- outer plinth (the ground ring around the stadium) -->
+  <ellipse cx="100" cy="90" rx="92" ry="25" fill="url(#cs-wall)" stroke="#5e6877" stroke-width="0.6"/>
+  <ellipse cx="100" cy="90" rx="84" ry="21" fill="#cfd6e1" stroke="#7c8696" stroke-width="0.45"/>
+
+  <!-- outer stadium wall (front-facing side) -->
+  <path d="M 22 70
+  L 22 88
+  A 78 22 0 0 0 178 88
+  L 178 70
+  A 78 22 0 0 1 22 70 Z" fill="url(#cs-wall)" stroke="#404a59" stroke-width="0.7"/>
+
+  <!-- arched columns -->
+  <path d="M 175.9 90.1 L 175.9 79.1 Q 177.2 77.1 178.5 79.1 L 178.5 90.1 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 173.5 93.2 L 173.5 82.2 Q 174.8 80.2 176.1 82.2 L 176.1 93.2 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 169.7 96.1 L 169.7 85.1 Q 171.0 83.1 172.3 85.1 L 172.3 96.1 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 164.3 98.9 L 164.3 87.9 Q 165.6 85.9 166.9 87.9 L 166.9 98.9 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 157.6 101.4 L 157.6 90.4 Q 158.9 88.4 160.2 90.4 L 160.2 101.4 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 149.8 103.6 L 149.8 92.6 Q 151.1 90.6 152.4 92.6 L 152.4 103.6 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 140.9 105.5 L 140.9 94.5 Q 142.2 92.5 143.5 94.5 L 143.5 105.5 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 131.1 107.0 L 131.1 96.0 Q 132.4 94.0 133.7 96.0 L 133.7 107.0 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 120.7 108.1 L 120.7 97.1 Q 122.0 95.1 123.3 97.1 L 123.3 108.1 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 109.8 108.8 L 109.8 97.8 Q 111.1 95.8 112.4 97.8 L 112.4 108.8 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 98.7 109.0 L 98.7 98.0 Q 100.0 96.0 101.3 98.0 L 101.3 109.0 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 87.6 108.8 L 87.6 97.8 Q 88.9 95.8 90.2 97.8 L 90.2 108.8 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 76.7 108.1 L 76.7 97.1 Q 78.0 95.1 79.3 97.1 L 79.3 108.1 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 66.3 107.0 L 66.3 96.0 Q 67.6 94.0 68.9 96.0 L 68.9 107.0 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 56.5 105.5 L 56.5 94.5 Q 57.8 92.5 59.1 94.5 L 59.1 105.5 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 47.6 103.6 L 47.6 92.6 Q 48.9 90.6 50.2 92.6 L 50.2 103.6 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 39.8 101.4 L 39.8 90.4 Q 41.1 88.4 42.4 90.4 L 42.4 101.4 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 33.1 98.9 L 33.1 87.9 Q 34.4 85.9 35.7 87.9 L 35.7 98.9 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 27.7 96.1 L 27.7 85.1 Q 29.0 83.1 30.3 85.1 L 30.3 96.1 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 23.9 93.2 L 23.9 82.2 Q 25.2 80.2 26.5 82.2 L 26.5 93.2 Z" fill="#293141" opacity="0.78"/>
+  <path d="M 21.5 90.1 L 21.5 79.1 Q 22.8 77.1 24.1 79.1 L 24.1 90.1 Z" fill="#293141" opacity="0.78"/>
+
+  <!-- horizontal banding -->
+  <path d="M 24 83 A 76 20 0 0 0 176 83" fill="none" stroke="#9aa3b4" stroke-width="0.6" opacity="0.85"/>
+
+  <!-- back-row roof petals (drawn first) -->
+  <g>
+    <path d="M 22.44 67.67 L 13.69 64.93 L 25.18 63.78 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 25.54 63.45 L 18.70 60.05 L 30.92 59.78 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 31.50 59.48 L 26.83 55.56 L 39.32 56.18 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 40.10 55.91 L 37.77 51.62 L 50.05 53.10 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 50.99 52.88 L 51.11 48.38 L 62.69 50.68 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 63.77 50.52 L 66.32 45.98 L 76.77 49.00 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 77.94 48.90 L 82.83 44.50 L 91.75 48.12 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 92.96 48.09 L 100.00 44.00 L 107.04 48.09 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 108.25 48.12 L 117.17 44.50 L 122.06 48.90 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 123.23 49.00 L 133.68 45.98 L 136.23 50.52 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 137.31 50.68 L 148.89 48.38 L 149.01 52.88 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 149.95 53.10 L 162.23 51.62 L 159.90 55.91 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 160.68 56.18 L 173.17 55.56 L 168.50 59.48 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 169.08 59.78 L 181.30 60.05 L 174.46 63.45 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 174.82 63.78 L 186.31 64.93 L 177.56 67.67 Z" fill="#1f7170" stroke="#0f3a3a" stroke-width="0.35"/>
+  </g>
+  <g>
+    <path d="M 17.63 66.16 L 13.69 64.93 L 18.86 64.41 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 21.78 61.58 L 18.70 60.05 L 24.20 59.93 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 28.93 57.32 L 26.83 55.56 L 32.45 55.84 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 38.82 53.55 L 37.77 51.62 L 43.30 52.29 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 51.06 50.41 L 51.11 48.38 L 56.32 49.42 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 65.18 48.02 L 66.32 45.98 L 71.03 47.34 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 80.63 46.48 L 82.83 44.50 L 86.84 46.13 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 96.83 45.84 L 100.00 44.00 L 103.17 45.84 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 113.16 46.13 L 117.17 44.50 L 119.37 46.48 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 128.97 47.34 L 133.68 45.98 L 134.82 48.02 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 143.68 49.42 L 148.89 48.38 L 148.94 50.41 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 156.70 52.29 L 162.23 51.62 L 161.18 53.55 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 167.55 55.84 L 173.17 55.56 L 171.07 57.32 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 175.80 59.93 L 181.30 60.05 L 178.22 61.58 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 181.14 64.41 L 186.31 64.93 L 182.37 66.16 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+  </g>
+
+  <!-- top rim of stand (where the roof attaches) -->
+  <ellipse cx="100" cy="70" rx="78" ry="22" fill="url(#cs-ring)" stroke="#2a3340" stroke-width="0.6"/>
+  <ellipse cx="100" cy="70" rx="75.5" ry="19.5" fill="#1a2230"/>
+
+  <!-- inner seating ring (red) -->
+  <ellipse cx="100" cy="70.5" rx="64" ry="17" fill="url(#cs-seats)" stroke="#3a1010" stroke-width="0.4"/>
+
+  <!-- seating tier lines -->
+  <g fill="none" stroke="#f1c8be" stroke-opacity="0.5" stroke-width="0.32">
+    <ellipse cx="100" cy="70.6" rx="62" ry="15.6"/>
+    <ellipse cx="100" cy="70.8" rx="59" ry="14.4"/>
+    <ellipse cx="100" cy="71" rx="56" ry="13.2"/>
+  </g>
+
+  <!-- field -->
+  <ellipse cx="100" cy="71.5" rx="50" ry="12" fill="url(#cs-field)" stroke="#0c3614" stroke-width="0.4"/>
+
+  <!-- mown stripes -->
+  <ellipse cx="100" cy="72" rx="50.00" ry="12.00" fill="none" stroke="#0c3614" stroke-width="0.5" opacity="0.22"/>
+  <ellipse cx="100" cy="72" rx="48.20" ry="11.57" fill="none" stroke="#0c3614" stroke-width="0.5" opacity="0.08"/>
+  <ellipse cx="100" cy="72" rx="46.40" ry="11.14" fill="none" stroke="#0c3614" stroke-width="0.5" opacity="0.22"/>
+  <ellipse cx="100" cy="72" rx="44.60" ry="10.70" fill="none" stroke="#0c3614" stroke-width="0.5" opacity="0.08"/>
+  <ellipse cx="100" cy="72" rx="42.80" ry="10.27" fill="none" stroke="#0c3614" stroke-width="0.5" opacity="0.22"/>
+  <ellipse cx="100" cy="72" rx="41.00" ry="9.84" fill="none" stroke="#0c3614" stroke-width="0.5" opacity="0.08"/>
+
+  <!-- 30-yard inner circle -->
+  <ellipse cx="100" cy="71.5" rx="22.5" ry="5.4" fill="none" stroke="#eaf6d3" stroke-width="0.4" stroke-dasharray="1.4 1.2" opacity="0.75"/>
+
+  <!-- pitch strip (foreshortened by perspective) -->
+  <path d="M 94.5 65.5 L 105.5 65.5 L 106.8 77 L 93.2 77 Z" fill="url(#cs-pitch)" stroke="#6b4a1f" stroke-width="0.35"/>
+  <!-- crease + stumps -->
+  <g stroke="#ffffff" stroke-linecap="round">
+    <line x1="95.5" y1="67" x2="104.5" y2="67" stroke-width="0.4"/>
+    <line x1="94.4" y1="75" x2="105.6" y2="75" stroke-width="0.4"/>
+    <line x1="100" y1="65.8" x2="100" y2="66.7" stroke-width="0.55"/>
+    <line x1="100" y1="75.3" x2="100" y2="76.4" stroke-width="0.55"/>
+  </g>
+
+  <!-- front roof petals (drawn over the bowl so they appear above) -->
+  <g>
+    <path d="M 177.68 68.02 L 188.00 70.00 L 177.68 71.98 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 177.56 72.33 L 186.31 75.07 L 174.82 76.22 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 174.46 76.55 L 181.30 79.95 L 169.08 80.22 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 168.50 80.52 L 173.17 84.44 L 160.68 83.82 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 159.90 84.09 L 162.23 88.38 L 149.95 86.90 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 149.01 87.12 L 148.89 91.62 L 137.31 89.32 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 136.23 89.48 L 133.68 94.02 L 123.23 91.00 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 122.06 91.10 L 117.17 95.50 L 108.25 91.88 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 107.04 91.91 L 100.00 96.00 L 92.96 91.91 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 91.75 91.88 L 82.83 95.50 L 77.94 91.10 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 76.77 91.00 L 66.32 94.02 L 63.77 89.48 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 62.69 89.32 L 51.11 91.62 L 50.99 87.12 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 50.05 86.90 L 37.77 88.38 L 40.10 84.09 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 39.32 83.82 L 26.83 84.44 L 31.50 80.52 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 30.92 80.22 L 18.70 79.95 L 25.54 76.55 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 25.18 76.22 L 13.69 75.07 L 22.44 72.33 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+    <path d="M 22.32 71.98 L 12.00 70.00 L 22.32 68.02 Z" fill="url(#cs-roof)" stroke="#0f3a3a" stroke-width="0.35"/>
+  </g>
+  <g>
+    <path d="M 183.36 69.11 L 188.00 70.00 L 183.36 70.89 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 182.37 73.84 L 186.31 75.07 L 181.14 75.59 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 178.22 78.42 L 181.30 79.95 L 175.80 80.07 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 171.07 82.68 L 173.17 84.44 L 167.55 84.16 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 161.18 86.45 L 162.23 88.38 L 156.70 87.71 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 148.94 89.59 L 148.89 91.62 L 143.68 90.58 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 134.82 91.98 L 133.68 94.02 L 128.97 92.66 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 119.37 93.52 L 117.17 95.50 L 113.16 93.87 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 103.17 94.16 L 100.00 96.00 L 96.83 94.16 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 86.84 93.87 L 82.83 95.50 L 80.63 93.52 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 71.03 92.66 L 66.32 94.02 L 65.18 91.98 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 56.32 90.58 L 51.11 91.62 L 51.06 89.59 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 43.30 87.71 L 37.77 88.38 L 38.82 86.45 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 32.45 84.16 L 26.83 84.44 L 28.93 82.68 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 24.20 80.07 L 18.70 79.95 L 21.78 78.42 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 18.86 75.59 L 13.69 75.07 L 17.63 73.84 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+    <path d="M 16.64 70.89 L 12.00 70.00 L 16.64 69.11 Z" fill="#f4f7fb" stroke="#a8b2c0" stroke-width="0.2"/>
+  </g>
+
+  <!-- specular highlight along front wall -->
+  <path d="M 30 85 A 70 14 0 0 0 170 85" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="0.6"/>
+
+  <!-- front floodlights (poles in front of the structure) -->
+  
+  <g>
+    <line x1="187.5" y1="82.7" x2="188.6" y2="40.7" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="187.5" y1="82.7" x2="188.6" y2="40.7" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(188.6 40.7)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="187.5" cy="82.7" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+
+  <g>
+    <line x1="154.1" y1="96.7" x2="154.8" y2="52.7" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="154.1" y1="96.7" x2="154.8" y2="52.7" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(154.8 52.7)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="154.1" cy="96.7" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+
+  <g>
+    <line x1="45.9" y1="96.7" x2="45.2" y2="52.7" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="45.9" y1="96.7" x2="45.2" y2="52.7" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(45.2 52.7)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="45.9" cy="96.7" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+
+  <g>
+    <line x1="12.5" y1="82.7" x2="11.4" y2="40.7" stroke="#1a2230" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="12.5" y1="82.7" x2="11.4" y2="40.7" stroke="#6c7a8d" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- lamp head -->
+    <g transform="translate(11.4 40.7)">
+      <rect x="-5" y="-2.6" width="10" height="3.2" rx="0.6" fill="#cdd6e2" stroke="#3a4453" stroke-width="0.35"/>
+      <rect x="-4.4" y="-2.2" width="8.8" height="2.4" fill="url(#cs-lamp)"/>
+      <!-- support struts -->
+      <line x1="-3" y1="0.6" x2="-1" y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="3"  y1="0.6" x2="1"  y2="2.4" stroke="#3a4453" stroke-width="0.4"/>
+      <line x1="0"  y1="0.6" x2="0"  y2="2.6" stroke="#3a4453" stroke-width="0.4"/>
+    </g>
+    <!-- base flange -->
+    <ellipse cx="12.5" cy="82.7" rx="1.6" ry="0.5" fill="#1a2230" opacity="0.7"/>
+  </g>
+</svg>

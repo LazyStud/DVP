@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Global Cricket Insights • 2000–2025</title>
-  <link rel="stylesheet" href="styles.css?v=landing2" />
+  <link rel="stylesheet" href="styles.css?v=t25" />
+  <!-- Apply saved theme before first paint to prevent flash -->
+  <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('gci-theme')||'dark');}catch(_){}</script>
 </head>
 <body class="landing">
   <!-- Background image layer -->
@@ -36,6 +38,7 @@
       </ul>
       <button id="enterBtn" class="cta">Explore data</button>
     </div>
+    <div class="hero-right" id="decadeChart" aria-label="Matches by format and decade"></div>
   </section>
 
   <!-- UI chrome (hidden while landing via CSS) -->
@@ -69,6 +72,10 @@
   <section class="year-box" id="yearBox" aria-label="Years slider">
     <div class="yr-header">
       <span id="yearBoxValue">Years 2000–2025</span>
+      <div class="yr-header-controls">
+        <button id="playBtn" class="play-btn" aria-label="Play year-by-year">▶</button>
+        <button id="yrCollapseBtn" class="yr-collapse-btn" aria-label="Toggle year slider" aria-expanded="true">▾</button>
+      </div>
     </div>
     <div class="yr-slider">
       <div class="yr-track"></div>
@@ -82,6 +89,30 @@
     </div>
   </section>
 
+  <!-- Theme toggle -->
+  <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to light theme" title="Toggle theme">☀</button>
+
+  <!-- Head-to-head comparison -->
+  <button id="h2hBtn" class="export-globe-btn" aria-label="Head-to-head comparison" title="Head-to-Head" style="left:172px">🥊</button>
+
+  <!-- Toss insights (T-3.3) -->
+  <button id="insightsBtn" class="export-globe-btn" aria-label="Toss insights" title="Insights" style="left:212px">📊</button>
+
+  <!-- Insights feed toggle (T-3.7) -->
+  <button id="insightsFeedBtn" class="export-globe-btn" aria-label="Cricket insights feed" title="Insights feed" style="left:252px">
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M8 1a5 5 0 0 1 3.09 8.98c-.35.28-.59.7-.63 1.15L10.4 12H5.6l-.06-.87c-.04-.45-.28-.87-.63-1.15A5 5 0 0 1 8 1Zm1.5 13h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1Z"/>
+    </svg>
+  </button>
+
+  <!-- Globe / map PNG export -->
+  <button id="exportGlobeBtn" class="export-globe-btn" aria-label="Save map as PNG" title="Save PNG">
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/>
+      <rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+    </svg>
+  </button>
+
   <!-- Toast -->
   <div id="loadingToast" class="toast">Loading…</div>
 
@@ -89,7 +120,15 @@
   <aside id="leaderboardOverlay" class="overlay" hidden aria-hidden="true" aria-labelledby="lbTitle">
     <header class="overlay-header">
       <h2 id="lbTitle">Leaderboard</h2>
-      <button id="closeOverlay" class="icon-btn" aria-label="Close">✕</button>
+      <div class="overlay-header-actions">
+        <button id="exportLbBtn" class="icon-btn" aria-label="Save leaderboard as PNG" title="Save PNG">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+            <path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/>
+            <rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="closeOverlay" class="icon-btn" aria-label="Close">✕</button>
+      </div>
     </header>
     <nav class="tabs" role="tablist" aria-label="Leaderboards">
       <button id="tab-batting" class="tab active" role="tab" aria-selected="true" data-kind="batting">Batting</button>
@@ -103,10 +142,10 @@
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
-  <script src="formats.js?v=landing2"></script>
-  <script src="db.js?v=landing2"></script>
-  <script src="venue.js?v=landing2"></script>
-  <script src="tilt-toggle.js?v=landing2"></script>
+  <script src="formats.js?v=t25"></script>
+  <script src="db.js?v=t25"></script>
+  <script src="venue.js?v=t25"></script>
+  <script src="tilt-toggle.js?v=t25"></script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

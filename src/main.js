@@ -1,8 +1,9 @@
 /* main.js — entry point. Imports all modules, sets up SVG, wires interactions, runs init. */
+import { DEBUG }                                      from './debug.js';
 import { state }                                      from './state.js';
 import { DB_URL, YEAR_MIN, YEAR_MAX, PALETTES, SPIN_DEG_PER_SEC } from './config.js';
 import { loadVenueCountries }                         from './data/queries.js';
-import { computeChoropleth, computeFlows }            from './data/queries.js';
+import { computeChoropleth, computeFlows, getVenueTossStats, getVenueTossBias } from './data/queries.js';
 import { drawStaticLayers }                           from './layers/sphere.js';
 import { drawCountries, applyCountryHighlight, applyChoropleth, updateHoverTransform } from './layers/countries.js';
 import { drawSpikes, updateSpikesPosition, renderSpikeLegend } from './layers/spikes.js';
@@ -14,6 +15,18 @@ import { renderLeaderboard, wireLeaderboardEvents } from './ui/leaderboard.js';
 import { updateInstruction }                          from './ui/instructionBox.js';
 import { hideVenueLoading }                           from './ui/toast.js';
 import { initYearBox }                                from './ui/yearSlider.js';
+import { pushHash, readHash }                         from './ui/urlState.js';
+import { initPlayback }                               from './ui/playback.js';
+import { initThemeToggle }                            from './ui/themeToggle.js';
+import { initExportButtons, exportSvgAsPng }         from './ui/exportPng.js';
+import { open as openHeadToHead }                    from './ui/headToHead.js';
+import { open as openInsights }                      from './ui/insights.js';
+import { handleCountryClick }                         from './layers/venues.js';
+import { canonicalMapName }                           from './data/names.js';
+import * as Typology                                   from './data/typology.js';
+import { initDecadeChart }                             from './ui/decadeChart.js';
+import { initSearch }                                  from './ui/search.js';
+import { initInsightsFeed, showInsightsFeed }          from './ui/insightsFeed.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -164,6 +177,7 @@ function setMode(newMode) {
     const bubbleMetricEl = document.querySelector('.bubble-metric'); if (bubbleMetricEl) bubbleMetricEl.style.display = state.mode === 'map' ? 'block' : 'none';
   } catch (_) {}
   try { updateInstruction(state.mode); } catch (e) { reportError('nonfatal', e); }
+  try { pushHash(); } catch (_) {}
 }
 
 window.addEventListener('view-toggle', ev => setMode(ev?.detail?.map ? 'map' : 'globe'));
@@ -196,6 +210,7 @@ state.svg.on('dblclick', () => {
     state.svg.transition().duration(400).call(zoomMap.transform, d3.zoomIdentity).on('end', () => gRoot.attr('transform', null));
     state.mapZoomK = 1; state.countryFocused = false;
   }
+  try { pushHash({ country: '' }); } catch (_) {}
 });
 
 // ── Orchestrated recompute ────────────────────────────────────────────────────
@@ -216,6 +231,7 @@ async function recomputeAndDraw(yearMin, yearMax) {
 
 window._DB_URL = DB_URL;
 await DB.init(DB_URL);
+try { initDecadeChart(); } catch (e) { if (DEBUG) console.warn('decadeChart init failed', e); }
 resize();
 drawStaticLayers();
 drawCountries();
@@ -240,16 +256,56 @@ window.addEventListener('venuewindow:close', () => { hideVenueLoading(); if (sta
 
 wireLeaderboardEvents();
 
+// ── Restore state from URL hash (before initYearBox reads state.yearRange) ───
+const _h = readHash();
+state.yearRange     = { min: _h.yearMin, max: _h.yearMax };
+state.selectedFormat = _h.format;
+window.selectedFormat = _h.format;
+
 initYearBox(false);
+initPlayback();
+initThemeToggle();
+initExportButtons();
+window.exportSvgAsPng = exportSvgAsPng;
+window.__getYearRange = () => state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
+
+// ── Expose toss query functions for venue.js IIFE ────────────────────────────
+window.__getVenueTossStats = getVenueTossStats;
+window.__getVenueTossBias  = getVenueTossBias;
+
+// ── Typology bridge (T-3.4) ──────────────────────────────────────────────────
+window.Typology = {
+  loadContext: () => Typology.loadTypologyContext(window.DB),
+  classify:    Typology.classifyVenue,
+};
+
+// ── Head-to-head button ──────────────────────────────────────────────────────
+const h2hBtn = document.getElementById('h2hBtn');
+if (h2hBtn) { h2hBtn.addEventListener('click', () => { try { openHeadToHead(); } catch (e) { if (DEBUG) console.warn('h2h', e); } }); }
+
+// ── Insights button (T-3.3) ──────────────────────────────────────────────────
+const insightsBtn = document.getElementById('insightsBtn');
+if (insightsBtn) { insightsBtn.addEventListener('click', () => { try { openInsights(); } catch (e) { if (DEBUG) console.warn('insights', e); } }); }
+
+// ── Global search (T-3.6) ────────────────────────────────────────────────────
+try { initSearch(); } catch (e) { if (DEBUG) console.warn('search init failed', e); }
+
+// ── Insights feed (T-3.7) ────────────────────────────────────────────────────
+try { initInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed init failed', e); }
+const insightsFeedBtn = document.getElementById('insightsFeedBtn');
+if (insightsFeedBtn) { insightsFeedBtn.addEventListener('click', () => { try { showInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed', e); } }); }
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;
 const YEAR_DEBOUNCE_MS = 300;
+window.addEventListener('format:change', () => { try { pushHash(); } catch (_) {} });
+
 window.addEventListener('yearrange:change', ev => {
   const { min, max } = ev.detail || {};
   if (DEBUG) console.info('[SLIDER] requested range:', min, max);
   state.yearRange = { min, max };
   try { const ybv = document.getElementById('yearBoxValue'); if (ybv) ybv.textContent = `Years ${min}–${max}`; } catch (_) {}
+  try { pushHash(); } catch (_) {}
 
   if (_yearRangeDebounce) clearTimeout(_yearRangeDebounce);
   _yearRangeDebounce = setTimeout(async () => {
@@ -330,3 +386,38 @@ enterBtn?.addEventListener('click', () => {
   setMode('globe');
   requestAnimationFrame(() => { resize(); startSpin(); });
 });
+
+// ── Apply hash state that requires post-init DOM/data ────────────────────────
+const _hashHasState = _h.view !== 'globe'
+  || _h.yearMin !== YEAR_MIN || _h.yearMax !== YEAR_MAX
+  || _h.format  !== 'all'
+  || _h.country;
+
+if (_hashHasState) {
+  // Sync format button UI and gradient bar if format differs from default
+  if (_h.format !== 'all') {
+    document.querySelectorAll('.fmt-btn').forEach(b =>
+      b.setAttribute('aria-selected', b.dataset.format === _h.format ? 'true' : 'false')
+    );
+    const grad = document.querySelector('.legend-gradbar');
+    if (grad) grad.style.background =
+      `linear-gradient(90deg, ${PALETTES[_h.format][0]}, ${PALETTES[_h.format][1]}, ${PALETTES[_h.format][2]})`;
+  }
+
+  // Auto-enter explore mode
+  document.body.classList.remove('landing');
+
+  if (_h.view === 'map') {
+    setMode('map');
+  } else {
+    requestAnimationFrame(() => { resize(); startSpin(); });
+  }
+
+  // Restore focused country
+  if (_h.country) {
+    const feat = state.countries.find(
+      f => canonicalMapName(f.properties?.name || '') === _h.country
+    );
+    if (feat) handleCountryClick(feat).catch(() => {});
+  }
+}

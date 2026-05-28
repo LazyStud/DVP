@@ -1,9 +1,10 @@
 /* VenueWindow: lightweight anchored popup with radar placeholder */
 (function () {
   let svgRef, gRootRef, getProjection, getMode;
-  let panel, titleEl, badgeEl, contentEl;
+  let panel, titleEl, badgeEl, typologyChipEl, contentEl;
   let isOpen = false;
   let currentDatum = null;
+  let _prevFocus = null;
   // small in-memory cache to avoid re-running heavy DB queries for the same venue/year/format
   const _metricsCache = new Map();
   // debounce timer for yearrange slider updates
@@ -34,6 +35,7 @@
     }
   }
 
+  // eslint-disable-next-line no-unused-vars
   function workerAggregate(payload){
     return new Promise((resolve, reject) => {
       ensureWorker();
@@ -81,6 +83,11 @@
   left.appendChild(titleEl);
   left.appendChild(diagPanel);
     left.appendChild(badgeEl);
+
+    typologyChipEl = document.createElement('span');
+    typologyChipEl.className = 'venue-typology-chip';
+    typologyChipEl.hidden = true;
+    left.appendChild(typologyChipEl);
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "venue-close";
@@ -154,10 +161,19 @@
     </div>
   `;
 
+  // Toss impact card (T-3.3)
+  const tossCard = document.createElement("div");
+  tossCard.className = "venue-card venue-toss";
+  tossCard.innerHTML = `
+    <div class="venue-toss-title">Toss impact — batting first win %</div>
+    <div class="venue-toss-list"></div>
+  `;
+
   contentEl.appendChild(tabBar);
   contentEl.appendChild(topRow);
   contentEl.appendChild(evoWrap);
     contentEl.appendChild(info);
+  contentEl.appendChild(tossCard);
 
     // prepare interactive legend items (format toggles)
     const FORMATS = [
@@ -172,7 +188,7 @@
       btn.setAttribute('data-format', f.key);
       btn.setAttribute('aria-pressed', 'true');
       btn.innerHTML = `<i class="legend-dot" style="background:${f.color};box-shadow:0 2px 6px ${f.color}33;"></i><span class="venue-legend-label">${f.label}</span>`;
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', (_e) => {
         const fmt = btn.getAttribute('data-format');
         const pressed = btn.getAttribute('aria-pressed') === 'true';
         btn.setAttribute('aria-pressed', pressed ? 'false' : 'true');
@@ -200,6 +216,40 @@
         try { legend.classList.add('hidden'); } catch(e){ reportError('nonfatal', e); }
       });
 
+    // Export button: saves currently-visible chart (radar or evolution) as PNG.
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'icon-btn venue-export-btn';
+    exportBtn.setAttribute('aria-label', 'Save chart as PNG');
+    exportBtn.title = 'Save PNG';
+    exportBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/><rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg>';
+    exportBtn.addEventListener('click', () => {
+      if (!window.exportSvgAsPng) return;
+      const evoVisible = !evoWrap.classList.contains('hidden');
+      const svgEl = evoVisible
+        ? evoWrap.querySelector('svg[data-role="evo-heatmap"]')
+        : panel.querySelector('svg[data-role="radar"]');
+      if (!svgEl) return;
+
+      const venueName = (currentDatum && (currentDatum.venue || currentDatum.name || currentDatum.venue_name)) || 'Venue';
+      const country   = (currentDatum && currentDatum.country) ? String(currentDatum.country) : '';
+      const city      = (currentDatum && currentDatum.city)    ? String(currentDatum.city)    : '';
+      const location  = [city, country].filter(Boolean).join(', ');
+      const chartType = evoVisible ? 'Evolution Heatmap' : 'Radar Chart';
+      const yearRange = badgeEl ? badgeEl.textContent : '';
+      const fmt       = currentFormat === 'all' ? 'All formats' : (currentFormat || 'all').toUpperCase();
+      const safeName  = venueName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+      window.exportSvgAsPng(
+        svgEl,
+        `cricket-${safeName}-${evoVisible ? 'evolution' : 'radar'}.png`,
+        {
+          title:   `${venueName}${location ? ' — ' + location : ''} · ${chartType}`,
+          filters: `${yearRange} · Format: ${fmt}`,
+        }
+      );
+    });
+    header.insertBefore(exportBtn, closeBtn);
+
     panel.appendChild(header);
     // Toggle diag panel for developers
     titleEl.addEventListener('click', (e) => {
@@ -217,7 +267,7 @@
     // ESC closes
     window.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
     // track current year range for queries and update badge
-    let currentYearRange = { min: 2000, max: 2025 };
+    const currentYearRange = { min: 2000, max: 2025 };
     // current format (shared between listeners)
     let currentFormat = (window.selectedFormat || 'all');
 
@@ -331,7 +381,7 @@
     const metricsByFormat = (svgEl._metrics && svgEl._metrics.byFormat) ? svgEl._metrics.byFormat : null;
     if (!metricsByFormat) {
       // placeholder polygon (semi-filled)
-      const placeholder = d3.range(n).map(i => 0.6);
+      const placeholder = d3.range(n).map(() => 0.6);
       const line = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
       g.append("path").datum(placeholder).attr("d", line).attr("fill", "rgba(36,180,126,0.18)").attr("stroke", "var(--accent)");
       return;
@@ -400,12 +450,12 @@
       // skip formats with no metrics or zero matches — don't draw misleading polygons
       if (!metrics || !metrics.matches_count) return;
       const vals = [
-        scales.bat_sr(metrics.batting_sr || 0),
-        scales.bat_avg(metrics.batting_avg || 0),
-        scales.boundary_pct(metrics.boundary_pct || 0),
-        scales.bowl_eco(metrics.bowling_econ || 99),
-        scales.bowl_avg(metrics.bowling_avg || 99),
-        scales.bowl_sr(metrics.bowling_sr || 999)
+        scales.bat_sr(metrics.batting_sr ?? 0),
+        scales.bat_avg(metrics.batting_avg ?? 0),
+        scales.boundary_pct(metrics.boundary_pct ?? 0),
+        scales.bowl_eco(metrics.bowling_econ ?? 99),
+        scales.bowl_avg(metrics.bowling_avg ?? 99),
+        scales.bowl_sr(metrics.bowling_sr ?? 999)
       ];
       g.append('path')
         .datum(vals)
@@ -439,7 +489,7 @@
     // If there are no matches across all formats, show a neutral placeholder and
     // render labels as em-dashes to avoid implying numeric data.
     if (totalMatchesAcross === 0) {
-      const placeholder = d3.range(n).map(i => 0.35);
+      const placeholder = d3.range(n).map(() => 0.35);
       const linePh = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
       g.append("path").datum(placeholder).attr("d", linePh).attr("fill", "rgba(120,120,120,0.06)")
         .attr("stroke", "rgba(120,120,120,0.24)");
@@ -480,6 +530,23 @@
   // Trajectory charts (multi-line mini-charts) were removed by request.
   // If needed later, reintroduce a focused, tested implementation.
 
+  function pickDominantFormat(byFormat) {
+    let best = 'test', bestCount = 0;
+    for (const k of ['test', 'odi', 't20']) {
+      const n = (byFormat[k] && byFormat[k].matches_count) || 0;
+      if (n > bestCount) { bestCount = n; best = k; }
+    }
+    return best;
+  }
+
+  function renderTypologyChip(t) {
+    if (!typologyChipEl) return;
+    if (!t) { typologyChipEl.hidden = true; return; }
+    typologyChipEl.textContent = t.label;
+    typologyChipEl.dataset.key = t.key;
+    typologyChipEl.hidden = false;
+  }
+
   // fetch aggregated metrics for a venue + year range + format and render radar + textual summaries
   async function fetchAndRender(datum, yrRange = {min:2000,max:2025}, format = 'all'){
     format = Formats.normalizeFormat(format);
@@ -489,6 +556,7 @@
     const loadingOverlay = radarWrap ? radarWrap.querySelector('.venue-loading') : null;
     // show loading overlay
     if (loadingOverlay) loadingOverlay.style.display = 'flex';
+    if (typologyChipEl) typologyChipEl.hidden = true;
     // build candidate name aliases from datum.names (semicolon-separated in CSV) and other fields
     const names = [];
     if (datum.venue) names.push(String(datum.venue));
@@ -504,28 +572,35 @@
     const cacheKey = JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format });
     if (_metricsCache.has(cacheKey)) {
       const cached = _metricsCache.get(cacheKey);
-      svgEl._metrics = cached;
-      svgEl.dataset.metrics = JSON.stringify(cached);
+      svgEl._metrics = cached.metrics;
+      svgEl.dataset.metrics = JSON.stringify(cached.metrics);
       drawRadar(svgEl);
-      // hide loading overlay
+      // restore raw rows so Evolution tab and format buttons work
+      try { panel._lastRows = cached.rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
+      try { drawEvolutionHeatmap(cached.rows, yrRange, format); } catch(e){ if (DEBUG) console.warn('evolution draw (cache) failed', e); }
       if (loadingOverlay) loadingOverlay.style.display = 'none';
+      try {
+        if (window.Typology && typologyChipEl) {
+          const ctx = await window.Typology.loadContext();
+          const bf = (cached.metrics && cached.metrics.byFormat) || {};
+          const fmtKey = (format === 'all') ? pickDominantFormat(bf) : format;
+          const m = bf[fmtKey];
+          renderTypologyChip(m ? window.Typology.classify(
+            { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
+              bowling_avg: m.bowling_avg, matches_count: m.matches_count },
+            fmtKey, ctx) : null);
+        }
+      } catch (e) { reportError('typology', e); }
       return;
     }
     // fallback to country+city if no aliases
     if (!aliases.length && datum.country && datum.city) aliases.push((String(datum.city) + ' ' + String(datum.country)).toLowerCase());
 
-    // prepare exact-match IN clause and LIKE fallback
-  // NOTE: matches.csv defines the venue column as `venue_name` (and source CSVs vary), avoid referencing m.venue which doesn't exist
-  const exactClause = aliases.length ? `LOWER(COALESCE(m.venue_name, '')) IN (${aliases.map(()=>'?').join(',')})` : null;
-    const exactParams = aliases.slice();
-  const likeClause = aliases.length ? aliases.map(_ => `LOWER(COALESCE(m.venue_name, '')) LIKE ?`).join(' OR ') : `LOWER(COALESCE(m.venue_name, '')) LIKE ?`;
-    const likeParams = aliases.length ? aliases.map(p => `%${p}%`) : [`%${(datum.venue||datum.name||'').toLowerCase()}%`];
     // New simplified aggregation: query the `venue_stats` table directly and
     // compute per-format aggregates. This replaces the previous multi-table
     // SQL and worker-based approach.
     try {
       // Build SQL WHERE clause for venue name aliases using LIKE
-      const whereParts = [];
       const params = [yrRange.min, yrRange.max];
       const aliasLikes = (aliases.length ? aliases.map(_ => `%${_}%`) : [`%${(datum.venue||datum.name||'').toLowerCase()}%`]);
       const likeExprs = aliasLikes.map(_ => `LOWER(venue_name) LIKE ?`).join(' OR ');
@@ -627,7 +702,7 @@
             };
           });
           // keep innings-by-no available for merging later
-          try { panel._fallback_innings = innMap; } catch(e) { panel._fallback_innings = null; }
+          try { panel._fallback_innings = innMap; } catch { panel._fallback_innings = null; }
         } catch (fbErr) {
           if (DEBUG) console.warn('fallback per-innings aggregation failed', fbErr);
         }
@@ -713,7 +788,7 @@
 
       svgEl._metrics = { byFormat }; svgEl.dataset.metrics = JSON.stringify({ byFormat });
       try { const diag = panel.querySelector('.venue-diag'); if (diag) diag.textContent = JSON.stringify(svgEl._metrics, null, 2); } catch(e){ reportError('nonfatal', e); }
-      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), svgEl._metrics); } catch(e){ reportError('nonfatal', e); }
+      try { _metricsCache.set(JSON.stringify({ id: datum.venue || datum.name || datum.venue_id || '', yr: yrRange, format }), { metrics: svgEl._metrics, rows }); } catch(e){ reportError('nonfatal', e); }
       drawRadar(svgEl);
       // hide loading overlay if present
       if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -734,6 +809,57 @@
         });
         heat.appendChild(list);
       }
+
+      // ── Toss impact card (T-3.3) ────────────────────────────────────────────
+      try {
+        if (window.__getVenueTossStats) {
+          const tossData = await window.__getVenueTossStats(aliases, yrRange, format);
+          const tossList = panel.querySelector('.venue-toss-list');
+          if (tossList && tossData && tossData.byFormat) {
+            tossList.innerHTML = '';
+            const fmtOrder = ['test', 'odi', 't20'];
+            const fmtColors = { test: '#e6cf9a', odi: '#2dd4bf', t20: '#a78bfa' };
+            const fmtLabels = { test: 'Test', odi: 'ODI', t20: 'T20I' };
+            fmtOrder.forEach(fmt => {
+              const t = tossData.byFormat[fmt];
+              const row = document.createElement('div');
+              row.className = 'venue-toss-row';
+              const leftHtml = `<span class="venue-toss-left"><span class="venue-toss-format-dot" style="background:${fmtColors[fmt]}"></span><span class="venue-toss-format-key">${fmtLabels[fmt]}</span></span>`;
+              if (!t || !t.decided) {
+                row.innerHTML = `${leftHtml}<span class="venue-toss-bar-wrap"></span><span class="venue-toss-value venue-toss-nodata">—</span><span></span>`;
+              } else {
+                const pct  = Math.round(t.pct * 100);
+                const wins = t.battingFirstWins;
+                const n    = t.decided;
+                row.innerHTML = `${leftHtml}
+                  <span class="venue-toss-bar-wrap">
+                    <span class="venue-toss-bar" style="width:${pct}%;background:${fmtColors[fmt]}"></span>
+                    <span class="venue-toss-bar-mid"></span>
+                  </span>
+                  <span class="venue-toss-value">${pct}%</span>
+                  <span class="venue-toss-count">${wins}/${n}</span>`;
+              }
+              tossList.appendChild(row);
+            });
+          }
+        }
+      } catch (tossErr) {
+        if (DEBUG) console.warn('Toss impact card render failed', tossErr);
+      }
+
+      // ── Typology chip (T-3.4) ───────────────────────────────────────────────
+      try {
+        if (window.Typology && typologyChipEl) {
+          const ctx = await window.Typology.loadContext();
+          const fmtKey = (format === 'all') ? pickDominantFormat(byFormat) : format;
+          const m = byFormat[fmtKey];
+          renderTypologyChip(m ? window.Typology.classify(
+            { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
+              bowling_avg: m.bowling_avg, matches_count: m.matches_count },
+            fmtKey, ctx) : null);
+        }
+      } catch (e) { reportError('typology', e); }
+
       return;
     } catch (e) {
       if (DEBUG) console.warn('fetchAndRender venue metrics failed', e);
@@ -850,7 +976,7 @@
       const cellH = Math.max(18, Math.floor(ih / metrics.length));
 
       // draw grid
-      const rowsG = g.append('g').attr('class','heat-rows');
+      g.append('g').attr('class','heat-rows');
       metrics.forEach((m, ri) => {
         const y = ri * cellH;
         // metric label
@@ -864,21 +990,23 @@
           // tooltip
           if (v != null){
             cell.on('mouseenter', (ev) => {
+              document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove());
               const tip = document.createElement('div');
               tip.className = 'venue-heat-tip';
               tip.textContent = `${m.label} ${years[ci]}: ${typeof v==='number' ? (Math.round((v+Number.EPSILON)*100)/100) : v}`;
               document.body.appendChild(tip);
               const rect = ev.target.getBoundingClientRect();
               tip.style.left = `${rect.right + 8}px`; tip.style.top = `${rect.top}px`;
-              cell.on('mouseleave', () => { try{ tip.remove(); }catch(e){ reportError('nonfatal', e); } });
-            });
+            }).on('mouseleave', () => { document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove()); });
           }
         });
       });
 
-      // year labels on top
+      // year labels on top — skip labels that would overlap (need ~20px per label)
       const yearsG = g.append('g').attr('transform', `translate(0,${-6})`);
+      const labelEvery = Math.ceil(20 / Math.max(1, cellW));
       years.forEach((y, i) => {
+        if (i % labelEvery !== 0) return;
         const x = i * cellW + cellW/2;
         yearsG.append('text').attr('x', x).attr('y', -2).attr('font-size',10).attr('text-anchor','middle').attr('fill','var(--muted)').text(y);
       });
@@ -909,10 +1037,12 @@
     // global `venuewindow:open` event before kicking off the potentially long
     // fetch to ensure map-level transient loaders hide promptly.
     try {
+      _prevFocus = document.activeElement;
       panel.style.left = '50%';
       panel.style.top = '50%';
       panel.style.transform = 'translate(-50%, -50%)';
       panel.style.display = "block";
+      setTimeout(() => { const cb = panel.querySelector('.venue-close'); if (cb) cb.focus(); }, 20);
       // show blue backdrop (but keep year slider interactive above it)
       const backdropEl = document.getElementById('backdrop');
       if (backdropEl) {
@@ -948,7 +1078,7 @@
 
     if (rsvg) {
       // parse year badge for current range
-      let yr = badgeEl?.textContent || "2000–2025";
+      const yr = badgeEl?.textContent || "2000–2025";
       let min = 2000, max = 2025;
       try{
         const m = yr.match(/(\d{4})\s*[–-]\s*(\d{4})/);
@@ -996,6 +1126,8 @@
     panel.style.transform = '';
     delete panel.dataset.centered;
     window.dispatchEvent(new CustomEvent("venuewindow:close"));
+    try { if (_prevFocus && typeof _prevFocus.focus === 'function') _prevFocus.focus(); } catch { /* ignore */ }
+    _prevFocus = null;
   }
 
   function reposition(){

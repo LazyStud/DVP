@@ -1,9 +1,68 @@
 /* HTML tooltip helpers + rich country/venue tooltips.
  * Accesses globals: DB (db.js), d3 (CDN).
  */
+import { DEBUG }                from '../debug.js';
 import { state }                from '../state.js';
 import { canonicalMapName }     from '../data/names.js';
 import { loadVenuesForCountry } from '../data/queries.js';
+
+// ── Core tooltip helpers ─────────────────────────────────────────────────────
+
+/**
+ * Generate a tiny inline SVG sparkline with axis labels.
+ * Pure function — testable without DOM.
+ *
+ * @param {{ year: number, count: number }[]} points - sorted by year ascending
+ * @param {number} width     - SVG width in px (default 120)
+ * @param {number} height    - SVG height in px (default 40)
+ * @param {string} stroke    - line colour (default '#4fc3f7')
+ * @param {string} textColor - axis label colour (default '#8899aa')
+ * @returns {string} SVG markup
+ */
+export function sparklineSvg(points, width = 120, height = 44, stroke = '#4fc3f7', textColor = '#8899aa') {
+  if (!points || !points.length) return '';
+
+  const years  = points.map(p => p.year);
+  const counts = points.map(p => p.count);
+  const xMin   = Math.min(...years);
+  const xMax   = Math.max(...years);
+  const yMax   = Math.max(...counts, 1);
+
+  // Margins for axis labels
+  const ml = 18; // left margin for y-axis labels
+  const mb = 14; // bottom margin for x-axis labels
+  const mr = 4;  // right padding
+  const mt = 2;  // top padding
+  const plotW = width - ml - mr;
+  const plotH = height - mt - mb;
+
+  const xScale = xMax === xMin
+    ? () => ml
+    : y => ml + ((y - xMin) / (xMax - xMin)) * plotW;
+  const yScale = c => mt + plotH - ((c / yMax) * plotH);
+
+  const pts = points.map(p => `${xScale(p.year).toFixed(1)},${yScale(p.count).toFixed(1)}`).join(' ');
+  const dots = points.map(p => `<circle cx="${xScale(p.year).toFixed(1)}" cy="${yScale(p.count).toFixed(1)}" r="1.2" fill="${stroke}"/>`).join('');
+
+  // Y-axis: min (0) and max labels
+  const yMaxLabel = yMax >= 1000 ? `${(yMax / 1000).toFixed(1)}k` : String(yMax);
+  const y0 = yScale(0).toFixed(1);
+  const y1 = yScale(yMax).toFixed(1);
+
+  // X-axis: first and last year labels
+  const xFirst = xScale(xMin).toFixed(0);
+  const xLast  = xScale(xMax).toFixed(0);
+
+  return `<svg width="${width}" height="${height}" style="display:block;margin-top:2px" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${ml}" y1="${yScale(0).toFixed(1)}" x2="${ml + plotW}" y2="${yScale(0).toFixed(1)}" stroke="${textColor}" stroke-width="0.5" opacity="0.4"/>
+    <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+    ${dots}
+    <text x="${ml - 2}" y="${y0}" fill="${textColor}" font-size="8" text-anchor="end" dominant-baseline="central">0</text>
+    <text x="${ml - 2}" y="${y1}" fill="${textColor}" font-size="8" text-anchor="end" dominant-baseline="central">${yMaxLabel}</text>
+    <text x="${xFirst}" y="${height - 2}" fill="${textColor}" font-size="8" text-anchor="middle">${xMin}</text>
+    <text x="${xLast}" y="${height - 2}" fill="${textColor}" font-size="8" text-anchor="middle">${xMax}</text>
+  </svg>`;
+}
 
 // ── Core tooltip helpers ─────────────────────────────────────────────────────
 
@@ -63,7 +122,15 @@ export async function showVenueTooltip(ev, d) {
       </div>`;
     showTooltipAt(ev.clientX, ev.clientY, basic + '<div style="color:#bcd">Loading…</div>');
 
-    const like = `%${(String(name || d.names || '').toLowerCase()).replace(/%/g, '')}%`;
+    // Build alias list the same way the venue detail does so match counts stay in sync.
+    const _aliasSet = new Set();
+    const _push = s => { const v = String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (v) _aliasSet.add(v); };
+    _push(name);
+    _push(d.name);
+    if (d.names) String(d.names).split(';').forEach(_push);
+    const _likes = Array.from(_aliasSet).map(a => `%${a.replace(/%/g, '')}%`);
+    const _likeExprs = _likes.length ? _likes.map(() => `LOWER(venue_name) LIKE ?`).join(' OR ') : '1=0';
+
     let agg = { matches: 0, t20_matches: 0, odi_matches: 0, test_matches: 0 };
     try {
       const rows = DB.queryAll(
@@ -71,7 +138,7 @@ export async function showVenueTooltip(ev, d) {
                 SUM(CASE WHEN LOWER(format) LIKE '%t20%'  THEN CAST(matches AS INT) ELSE 0 END) AS t20_matches,
                 SUM(CASE WHEN LOWER(format) LIKE '%odi%'  THEN CAST(matches AS INT) ELSE 0 END) AS odi_matches,
                 SUM(CASE WHEN LOWER(format) LIKE '%test%' THEN CAST(matches AS INT) ELSE 0 END) AS test_matches
-         FROM venue_stats WHERE LOWER(venue_name) LIKE ?`, [like]
+         FROM venue_stats WHERE (${_likeExprs})`, _likes
       ) || [];
       if (rows[0]) agg = rows[0];
     } catch (_) {}
@@ -120,6 +187,15 @@ export async function showCountryTooltip(ev, feature) {
       html += `<div style="min-width:80px">${f.toUpperCase()}: <strong style="color:#fff">${mp}</strong><div style="color:#9fb6c8;font-size:0.78rem">win ${wpct}%</div></div>`;
     }
     html += '</div>';
+    // Sparkline of matches hosted per year
+    if (rec.byYear) {
+      const pts = Object.entries(rec.byYear)
+        .map(([y, c]) => ({ year: +y, count: c }))
+        .sort((a, b) => a.year - b.year);
+      if (pts.length) {
+        html += `<div style="margin-top:6px;color:#bcd;font-size:0.78rem">Matches per year${sparklineSvg(pts)}</div>`;
+      }
+    }
     try {
       const venues = await loadVenuesForCountry(cname);
       if (venues && venues.length) {

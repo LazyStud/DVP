@@ -144,3 +144,42 @@ describe('aggregateChoropleth — format buckets', () => {
     expect(rec.formats.t20.matches).toBe(0);
   });
 });
+
+// ── byYear tracking (T-2.8) ───────────────────────────────────────────────────
+
+describe('aggregateChoropleth — byYear tracking', () => {
+  it('records per-year match counts', () => {
+    const rows = [
+      row({ date: '2015-01-10' }),
+      row({ date: '2015-06-20' }),
+      row({ date: '2016-03-05' }),
+    ];
+    const agg = aggregateChoropleth(rows, 2000, 2025, fns);
+    const byYear = agg.get('australia').byYear;
+    expect(byYear).toBeDefined();
+    expect(byYear[2015]).toBe(2);
+    expect(byYear[2016]).toBe(1);
+  });
+
+  it('byYear is always initialised as an object', () => {
+    // With 0 rows the country is never created, so we test with 1 row
+    const agg = aggregateChoropleth([row()], 2000, 2025, fns);
+    const rec = agg.get('australia');
+    expect(rec).toBeDefined();
+    expect(rec.byYear).toBeDefined();
+    expect(typeof rec.byYear).toBe('object');
+  });
+
+  it('tracks multiple countries in byYear independently', () => {
+    const rows = [
+      row({ venue_country: 'Australia', date: '2015-01-01' }),
+      row({ venue_country: 'India',     date: '2015-02-01' }),
+      row({ venue_country: 'India',     date: '2016-01-01' }),
+    ];
+    const agg = aggregateChoropleth(rows, 2000, 2025, fns);
+    expect(agg.get('australia').byYear[2015]).toBe(1);
+    expect(agg.get('australia').byYear[2016]).toBeUndefined();
+    expect(agg.get('india').byYear[2015]).toBe(1);
+    expect(agg.get('india').byYear[2016]).toBe(1);
+  });
+});

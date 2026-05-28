@@ -1,7 +1,9 @@
 /* Leaderboard overlay: open/close, tab switching, table rendering. */
+import { DEBUG }                                        from '../debug.js';
 import { state }                                        from '../state.js';
 import { YEAR_MIN, YEAR_MAX }                           from '../config.js';
 import { getBattingLeaderboard, getBowlingLeaderboard } from '../data/queries.js';
+import { openPlayer }                                    from './playerWindow.js';
 
 const overlay  = document.getElementById('leaderboardOverlay');
 const backdrop = document.getElementById('backdrop');
@@ -168,6 +170,23 @@ export async function renderLeaderboard(kind = 'batting') {
         if (sortState.col === col) sortState.dir = sortState.dir === 'desc' ? 'asc' : 'desc';
         else { sortState.col = col; sortState.dir = 'desc'; }
         buildTable();
+      });
+    }
+
+    // Wire player click → open player drill-down modal
+    const tbody = tabPanel.querySelector('tbody');
+    if (tbody) {
+      tbody.addEventListener('click', ev => {
+        const tr = ev.target.closest('tr');
+        if (!tr) return;
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 2) return;
+        const playerName = tds[1].textContent.trim();
+        const team = tds[2]?.textContent.trim() || '';
+        // Skip demo fallback rows (Player A-J, Bowler A-J)
+        if (/^(Player|Bowler)\s[A-Z]$/.test(playerName)) return;
+        if (window._disablePlayerClick) return;
+        openPlayer(playerName, team, kind);
       });
     }
   }

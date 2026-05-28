@@ -1,4 +1,5 @@
 /* Venue icon layer, country-click handler, venue DB helpers. */
+import { DEBUG }                              from '../debug.js';
 import { state }                              from '../state.js';
 import { ICON_PATH, ICON_BASE }               from '../config.js';
 import { canonicalMapName }                   from '../data/names.js';
@@ -6,6 +7,7 @@ import { loadVenuesForCountry }               from '../data/queries.js';
 import { showVenueTooltip, moveTooltipToEvent, hideTooltip } from '../ui/tooltip.js';
 import { toast, toastHide }                   from '../ui/toast.js';
 import { focusGlobeOn, focusMapOn }           from './focus.js';
+import { pushHash }                           from '../ui/urlState.js';
 
 // ── Venue key + dedup ────────────────────────────────────────────────────────
 
@@ -85,6 +87,7 @@ export async function handleCountryClick(feature) {
   }
   state.countryFocused = true;
   state.stopSpin?.();
+  pushHash({ country: name });
   toast(`Searching stadiums in ${feature.properties?.name || 'country'}…`);
   if (state.mode === 'globe') await focusGlobeOn(feature); else await focusMapOn(feature);
   try {
