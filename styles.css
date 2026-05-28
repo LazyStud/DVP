@@ -1099,6 +1099,16 @@ body { background: transparent; }
 .venue-toss-value { text-align: right; color: var(--text); font-weight: 500; }
 .venue-toss-value .ci { font-weight: 400; color: var(--muted); font-size: 0.75rem; font-family: var(--mono, 'SF Mono', 'Cascadia Code', Consolas, monospace); }
 
+/* ===== Venue typology chip (T-3.4) ========================================= */
+.venue-typology-chip {
+  margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+  font-size: .72rem; font-weight: 600; letter-spacing: .02em;
+  border: 1px solid currentColor; white-space: nowrap;
+}
+.venue-typology-chip[data-key="batting"]  { color:#f59e0b; background:rgba(245,158,11,.12); }
+.venue-typology-chip[data-key="bowling"]  { color:#38bdf8; background:rgba(56,189,248,.12); }
+.venue-typology-chip[data-key="balanced"] { color:#94a3b8; background:rgba(148,163,184,.12); }
+
 /* ===== Toss insights overlay (T-3.3) ======================================== */
 #insights-window{position:fixed;z-index:1325;display:none;background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--text);border-radius:12px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);width:520px;max-width:94vw;max-height:calc(100vh - 40px);overflow:auto;font-size:14px;backdrop-filter:blur(16px);opacity:0;transform:scale(0.96);transition:opacity 180ms ease,transform 180ms ease;}
 #insights-window.open{opacity:1;transform:scale(1)}
@@ -1106,8 +1116,9 @@ body { background: transparent; }
 #insights-window .insights-title{margin:0;font-size:1.05rem;color:var(--text)}
 #insights-window .insights-close{background:transparent;color:var(--text);border:1px solid var(--panel-border);padding:4px 8px;border-radius:8px;cursor:pointer;font-size:1.1rem}
 #insights-window .insights-content{margin-top:8px}
-#insights-window .insights-placeholder{color:var(--muted);text-align:center;padding:20px;font-size:13px}
+#insights-window .insights-placeholder{color:var(--muted);text-align:center;padding:20px;font-size:13px;list-style:none}
 #insights-window .insights-loading{color:var(--muted);text-align:center;padding:20px}
+#insights-window .insights-loading-row{color:var(--muted);list-style:none;padding:8px 0;font-size:13px}
 
 #insights-window .insights-fmt-row{display:flex;gap:6px;margin:6px 0}
 #insights-window .insights-fmt-btn{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.06);padding:4px 10px;border-radius:8px;font-size:12px;cursor:pointer}

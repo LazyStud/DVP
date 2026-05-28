@@ -1,7 +1,7 @@
 /* VenueWindow: lightweight anchored popup with radar placeholder */
 (function () {
   let svgRef, gRootRef, getProjection, getMode;
-  let panel, titleEl, badgeEl, contentEl;
+  let panel, titleEl, badgeEl, typologyChipEl, contentEl;
   let isOpen = false;
   let currentDatum = null;
   let _prevFocus = null;
@@ -83,6 +83,11 @@
   left.appendChild(titleEl);
   left.appendChild(diagPanel);
     left.appendChild(badgeEl);
+
+    typologyChipEl = document.createElement('span');
+    typologyChipEl.className = 'venue-typology-chip';
+    typologyChipEl.hidden = true;
+    left.appendChild(typologyChipEl);
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "venue-close";
@@ -525,6 +530,23 @@
   // Trajectory charts (multi-line mini-charts) were removed by request.
   // If needed later, reintroduce a focused, tested implementation.
 
+  function pickDominantFormat(byFormat) {
+    let best = 'test', bestCount = 0;
+    for (const k of ['test', 'odi', 't20']) {
+      const n = (byFormat[k] && byFormat[k].matches_count) || 0;
+      if (n > bestCount) { bestCount = n; best = k; }
+    }
+    return best;
+  }
+
+  function renderTypologyChip(t) {
+    if (!typologyChipEl) return;
+    if (!t) { typologyChipEl.hidden = true; return; }
+    typologyChipEl.textContent = t.label;
+    typologyChipEl.dataset.key = t.key;
+    typologyChipEl.hidden = false;
+  }
+
   // fetch aggregated metrics for a venue + year range + format and render radar + textual summaries
   async function fetchAndRender(datum, yrRange = {min:2000,max:2025}, format = 'all'){
     format = Formats.normalizeFormat(format);
@@ -534,6 +556,7 @@
     const loadingOverlay = radarWrap ? radarWrap.querySelector('.venue-loading') : null;
     // show loading overlay
     if (loadingOverlay) loadingOverlay.style.display = 'flex';
+    if (typologyChipEl) typologyChipEl.hidden = true;
     // build candidate name aliases from datum.names (semicolon-separated in CSV) and other fields
     const names = [];
     if (datum.venue) names.push(String(datum.venue));
@@ -554,6 +577,18 @@
       drawRadar(svgEl);
       // hide loading overlay
       if (loadingOverlay) loadingOverlay.style.display = 'none';
+      try {
+        if (window.Typology && typologyChipEl) {
+          const ctx = await window.Typology.loadContext();
+          const bf = (cached.byFormat) || {};
+          const fmtKey = (format === 'all') ? pickDominantFormat(bf) : format;
+          const m = bf[fmtKey];
+          renderTypologyChip(m ? window.Typology.classify(
+            { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
+              bowling_avg: m.bowling_avg, matches_count: m.matches_count },
+            fmtKey, ctx) : null);
+        }
+      } catch (e) { reportError('typology', e); }
       return;
     }
     // fallback to country+city if no aliases
@@ -802,6 +837,19 @@
       } catch (tossErr) {
         if (DEBUG) console.warn('Toss impact card render failed', tossErr);
       }
+
+      // ── Typology chip (T-3.4) ───────────────────────────────────────────────
+      try {
+        if (window.Typology && typologyChipEl) {
+          const ctx = await window.Typology.loadContext();
+          const fmtKey = (format === 'all') ? pickDominantFormat(byFormat) : format;
+          const m = byFormat[fmtKey];
+          renderTypologyChip(m ? window.Typology.classify(
+            { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
+              bowling_avg: m.bowling_avg, matches_count: m.matches_count },
+            fmtKey, ctx) : null);
+        }
+      } catch (e) { reportError('typology', e); }
 
       return;
     } catch (e) {

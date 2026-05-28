@@ -134,20 +134,29 @@ export function close() {
 async function refresh() {
   const yr = window.__getYearRange?.() || { min: YEAR_MIN, max: YEAR_MAX };
   const fn = window.__getVenueTossBias;
+
+  const topList    = panel.querySelector('.insights-top .insights-list');
+  const bottomList = panel.querySelector('.insights-bottom .insights-list');
+
   if (!fn) {
-    contentEl.innerHTML = '<div class="insights-placeholder">Toss bias query not available</div>';
+    if (topList)    topList.innerHTML    = '<li class="insights-placeholder">Not available</li>';
+    if (bottomList) bottomList.innerHTML = '';
     return;
   }
 
-  contentEl.innerHTML = '<div class="insights-loading">Loading...</div>';
+  // Show loading inside the lists — don't clobber the column structure
+  const loadHtml = '<li class="insights-loading-row">Loading…</li>';
+  if (topList)    topList.innerHTML    = loadHtml;
+  if (bottomList) bottomList.innerHTML = loadHtml;
 
   try {
     const { top10, bottom10 } = await fn(yr, currentFormat, 20);
-    renderList('.insights-top .insights-list', top10, 'desc');
-    renderList('.insights-bottom .insights-list', bottom10, 'asc');
+    renderList('.insights-top .insights-list', top10);
+    renderList('.insights-bottom .insights-list', bottom10);
   } catch (e) {
     if (DEBUG) console.warn('insights query failed', e);
-    contentEl.innerHTML = '<div class="insights-placeholder">Could not load data</div>';
+    if (topList)    topList.innerHTML    = '<li class="insights-placeholder">Could not load data</li>';
+    if (bottomList) bottomList.innerHTML = '';
   }
 }
 

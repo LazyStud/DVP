@@ -23,6 +23,7 @@ import { open as openHeadToHead }                    from './ui/headToHead.js';
 import { open as openInsights }                      from './ui/insights.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
+import * as Typology                                   from './data/typology.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -267,6 +268,12 @@ window.__getYearRange = () => state.yearRange || { min: YEAR_MIN, max: YEAR_MAX 
 // ── Expose toss query functions for venue.js IIFE ────────────────────────────
 window.__getVenueTossStats = getVenueTossStats;
 window.__getVenueTossBias  = getVenueTossBias;
+
+// ── Typology bridge (T-3.4) ──────────────────────────────────────────────────
+window.Typology = {
+  loadContext: () => Typology.loadTypologyContext(window.DB),
+  classify:    Typology.classifyVenue,
+};
 
 // ── Head-to-head button ──────────────────────────────────────────────────────
 const h2hBtn = document.getElementById('h2hBtn');
