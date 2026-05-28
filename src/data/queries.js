@@ -18,6 +18,28 @@ import { wilsonInterval } from './stats.js';
 const choroCache = new LRU(12);
 const flowsCache = new LRU(12);
 
+// ── Venue canonical-name helper ───────────────────────────────────────────────
+// Returns Map<historicalNameLower → canonicalName> built from the venues table.
+// Used wherever a query groups by raw venue_name and needs to merge renamed venues.
+function buildVenueCanonicalMap() {
+  const map = new Map();
+  try {
+    const rows = DB.queryAll('SELECT venue, names FROM venues') || [];
+    for (const row of rows) {
+      const canonical = String(row.venue || '').trim();
+      if (!canonical) continue;
+      map.set(canonical.toLowerCase(), canonical);
+      if (row.names) {
+        String(row.names).split(';').forEach(n => {
+          const name = n.trim().toLowerCase();
+          if (name) map.set(name, canonical);
+        });
+      }
+    }
+  } catch (_) {}
+  return map;
+}
+
 // ── Schema cache ─────────────────────────────────────────────────────────────
 
 let schemaCache = null;
@@ -352,10 +374,56 @@ export async function loadVenuesForCountry(name) {
 
 export async function getPlayerYearBatting(playerName, minYear, maxYear) { try { const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.runs AS INT)) AS runs, SUM(CAST(bi.balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY year ORDER BY year`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ year: +r.year, runs: +r.runs || 0, balls: +r.balls || 0, matches: +r.matches || 0, sr: r.balls ? +((100 * +r.runs / +r.balls).toFixed(1)) : 0, avg: r.matches ? +((+r.runs / +r.matches).toFixed(2)) : 0 })); } catch (_) { return []; } }
 export async function getPlayerFormatBatting(playerName) { try { const rows = DB.queryAll(`SELECT LOWER(COALESCE(m.format, bi.format, '')) AS fmt, SUM(CAST(bi.runs AS INT)) AS runs FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? GROUP BY fmt`, [playerName]); if (!rows || !rows.length) return []; const fmtMap = { test: 'Test', odi: 'ODI', t20: 'T20', t20i: 'T20', twenty20: 'T20', 't20 international': 'T20' }; const agg = new Map(); for (const r of rows) { const raw = String(r.fmt || '').trim(); if (!raw) continue; const label = fmtMap[raw] || (raw === 'odi' ? 'ODI' : raw === 'test' ? 'Test' : raw.includes('t20') ? 'T20' : null); if (!label) continue; agg.set(label, (agg.get(label) || 0) + (+r.runs || 0)); } const out = []; for (const [label, runs] of agg) out.push({ label, runs }); out.sort((a, b) => b.runs - a.runs); return out; } catch (_) { return []; } }
-export async function getPlayerTopVenues(playerName, minYear, maxYear, limit = 5) { try { const rows = DB.queryAll(`SELECT COALESCE(m.venue_name, '') AS venue, SUM(CAST(bi.runs AS INT)) AS runs, COUNT(DISTINCT bi.match_id) AS matches FROM batting_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY COALESCE(m.venue_name, '') ORDER BY runs DESC LIMIT ${limit}`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ venue: r.venue || 'Unknown', runs: +r.runs || 0, matches: +r.matches || 0 })); } catch (_) { return []; } }
+export async function getPlayerTopVenues(playerName, minYear, maxYear, limit = 5) {
+  try {
+    const rawRows = DB.queryAll(
+      `SELECT COALESCE(m.venue_name, '') AS venue,
+              SUM(CAST(bi.runs AS INT))       AS runs,
+              COUNT(DISTINCT bi.match_id)     AS matches
+       FROM batting_innings bi
+       LEFT JOIN matches m ON bi.match_id = m.match_id
+       WHERE bi.batter = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
+       GROUP BY COALESCE(m.venue_name, '')`,
+      [playerName, minYear, maxYear]
+    ) || [];
+    const canon = buildVenueCanonicalMap();
+    const agg = new Map();
+    for (const r of rawRows) {
+      const key = canon.get(String(r.venue || '').toLowerCase().trim()) || r.venue || 'Unknown';
+      const cur = agg.get(key) || { venue: key, runs: 0, matches: 0 };
+      cur.runs    += +r.runs    || 0;
+      cur.matches += +r.matches || 0;
+      agg.set(key, cur);
+    }
+    return Array.from(agg.values()).sort((a, b) => b.runs - a.runs).slice(0, limit);
+  } catch (_) { return []; }
+}
 export async function getPlayerYearBowling(playerName, minYear, maxYear) { try { const rows = DB.queryAll(`SELECT CAST(substr(m.date,1,4) AS INT) AS year, SUM(CAST(bi.wickets AS INT)) AS wickets, SUM(CAST(bi.runs_conceded AS INT)) AS runs_conceded, SUM(CAST(bi.legal_balls AS INT)) AS balls, COUNT(DISTINCT bi.match_id) AS matches FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY year ORDER BY year`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ year: +r.year, wickets: +r.wickets || 0, runs_conceded: +r.runs_conceded || 0, balls: +r.balls || 0, matches: +r.matches || 0, econ: r.balls ? +((+r.runs_conceded / (+r.balls / 6)).toFixed(2)) : 0 })); } catch (_) { return []; } }
 export async function getPlayerFormatBowling(playerName) { try { const rows = DB.queryAll(`SELECT LOWER(COALESCE(m.format, bi.format, '')) AS fmt, SUM(CAST(bi.wickets AS INT)) AS wickets FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? GROUP BY fmt`, [playerName]); if (!rows || !rows.length) return []; const fmtMap = { test: 'Test', odi: 'ODI', t20: 'T20', t20i: 'T20', twenty20: 'T20', 't20 international': 'T20' }; const agg = new Map(); for (const r of rows) { const raw = String(r.fmt || '').trim(); if (!raw) continue; const label = fmtMap[raw] || (raw === 'odi' ? 'ODI' : raw === 'test' ? 'Test' : raw.includes('t20') ? 'T20' : null); if (!label) continue; agg.set(label, (agg.get(label) || 0) + (+r.wickets || 0)); } const out = []; for (const [label, wickets] of agg) out.push({ label, wickets }); out.sort((a, b) => b.wickets - a.wickets); return out; } catch (_) { return []; } }
-export async function getPlayerTopVenuesBowling(playerName, minYear, maxYear, limit = 5) { try { const rows = DB.queryAll(`SELECT COALESCE(m.venue_name, '') AS venue, SUM(CAST(bi.wickets AS INT)) AS wickets, COUNT(DISTINCT bi.match_id) AS matches FROM bowling_innings bi LEFT JOIN matches m ON bi.match_id = m.match_id WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? GROUP BY COALESCE(m.venue_name, '') ORDER BY wickets DESC LIMIT ${limit}`, [playerName, minYear, maxYear]); return (rows || []).map(r => ({ venue: r.venue || 'Unknown', wickets: +r.wickets || 0, matches: +r.matches || 0 })); } catch (_) { return []; } }
+export async function getPlayerTopVenuesBowling(playerName, minYear, maxYear, limit = 5) {
+  try {
+    const rawRows = DB.queryAll(
+      `SELECT COALESCE(m.venue_name, '') AS venue,
+              SUM(CAST(bi.wickets AS INT))    AS wickets,
+              COUNT(DISTINCT bi.match_id)     AS matches
+       FROM bowling_innings bi
+       LEFT JOIN matches m ON bi.match_id = m.match_id
+       WHERE bi.bowler = ? AND CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
+       GROUP BY COALESCE(m.venue_name, '')`,
+      [playerName, minYear, maxYear]
+    ) || [];
+    const canon = buildVenueCanonicalMap();
+    const agg = new Map();
+    for (const r of rawRows) {
+      const key = canon.get(String(r.venue || '').toLowerCase().trim()) || r.venue || 'Unknown';
+      const cur = agg.get(key) || { venue: key, wickets: 0, matches: 0 };
+      cur.wickets += +r.wickets || 0;
+      cur.matches += +r.matches || 0;
+      agg.set(key, cur);
+    }
+    return Array.from(agg.values()).sort((a, b) => b.wickets - a.wickets).slice(0, limit);
+  } catch (_) { return []; }
+}
 
 // ── Head-to-head comparison queries (T-3.2) ───────────────────────────────────
 
@@ -581,24 +649,7 @@ export async function getVenueTossStats(aliases, yrRange, format = 'all') {
 export async function getVenueTossBias(yrRange, format = 'all', minMatches = 20) {
   await DB.init(window._DB_URL || './data/db/cricket.db');
 
-  // Build canonical-name map from venues table (historical name → canonical venue name)
-  const historicalToCanonical = new Map();
-  try {
-    const venueRows = DB.queryAll('SELECT venue, names FROM venues') || [];
-    for (const row of venueRows) {
-      const canonical = String(row.venue || '').trim();
-      if (!canonical) continue;
-      historicalToCanonical.set(canonical.toLowerCase(), canonical);
-      if (row.names) {
-        String(row.names).split(';').forEach(n => {
-          const name = n.trim().toLowerCase();
-          if (name) historicalToCanonical.set(name, canonical);
-        });
-      }
-    }
-  } catch (e) {
-    if (DEBUG) console.warn('getVenueTossBias venue map failed', e);
-  }
+  const historicalToCanonical = buildVenueCanonicalMap();
 
   const fmtPatterns = Formats.formatLikePatterns(format);
   const fmtCond = fmtPatterns.length

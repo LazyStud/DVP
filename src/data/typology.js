@@ -45,6 +45,25 @@ function normalizeFormat(f) {
 
 export async function loadTypologyContext(DB) {
   if (_ctx) return _ctx;
+
+  // Build canonical name map so renamed venues (e.g. "Westpac Stadium" →
+  // "Sky Stadium") appear as one data point in the percentile distribution.
+  const canonicalMap = new Map();
+  try {
+    const venueRows = DB.queryAll('SELECT venue, names FROM venues') || [];
+    for (const row of venueRows) {
+      const canonical = String(row.venue || '').trim().toLowerCase();
+      if (!canonical) continue;
+      canonicalMap.set(canonical, canonical);
+      if (row.names) {
+        String(row.names).split(';').forEach(n => {
+          const name = n.trim().toLowerCase();
+          if (name) canonicalMap.set(name, canonical);
+        });
+      }
+    }
+  } catch (_) {}
+
   const sql = `
     SELECT LOWER(venue_name) AS v, LOWER(format) AS f,
            SUM(CAST(matches AS INT))         AS m,
@@ -55,8 +74,34 @@ export async function loadTypologyContext(DB) {
     WHERE venue_name IS NOT NULL
     GROUP BY v, f
     HAVING m >= 10`;
-  let rows = [];
-  try { rows = DB.queryAll(sql) || []; } catch (_) { rows = []; }
+  let rawRows = [];
+  try { rawRows = DB.queryAll(sql) || []; } catch (_) { rawRows = []; }
+
+  // Re-aggregate by canonical name using weighted averages.
+  const canonAgg = new Map();
+  for (const r of rawRows) {
+    const canonical = canonicalMap.get(String(r.v || '').trim()) || r.v || '';
+    const key = `${canonical}::${r.f}`;
+    const m = +r.m || 0;
+    const cur = canonAgg.get(key);
+    if (!cur) {
+      canonAgg.set(key, { v: canonical, f: r.f, m, sr_w: (+r.sr||0)*m, bp_w: (+r.bp||0)*m, bavg_w: (+r.bavg||0)*m });
+    } else {
+      cur.m      += m;
+      cur.sr_w   += (+r.sr||0)   * m;
+      cur.bp_w   += (+r.bp||0)   * m;
+      cur.bavg_w += (+r.bavg||0) * m;
+    }
+  }
+  const rows = [];
+  for (const agg of canonAgg.values()) {
+    if (agg.m < 10) continue;
+    rows.push({ v: agg.v, f: agg.f, m: agg.m,
+      sr:   agg.m > 0 ? agg.sr_w   / agg.m : null,
+      bp:   agg.m > 0 ? agg.bp_w   / agg.m : null,
+      bavg: agg.m > 0 ? agg.bavg_w / agg.m : null,
+    });
+  }
 
   const by = { test: blank(), odi: blank(), t20: blank(), all: blank() };
   for (const r of rows) {

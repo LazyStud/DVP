@@ -102,7 +102,8 @@ describe('loadTypologyContext', () => {
     let callCount = 0;
     const DB = { queryAll: () => { callCount++; return []; } };
     await loadTypologyContext(DB);
+    const countAfterFirst = callCount;
     await loadTypologyContext(DB);
-    expect(callCount).toBe(1);
+    expect(callCount).toBe(countAfterFirst); // second call must not re-query DB
   });
 });
