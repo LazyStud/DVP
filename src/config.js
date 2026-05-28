@@ -1,6 +1,6 @@
 export const DB_URL            = './data/db/cricket.db';
-export const ICON_PATH         = 'data/icon/CricketStadium.png';
-export const ICON_BASE         = 10;
+export const ICON_PATH         = 'data/icon/CricketStadium.svg';
+export const ICON_BASE         = 14;
 export const SPIN_DEG_PER_SEC  = 3;
 export const YEAR_MIN          = 2000;
 export const YEAR_MAX          = 2025;
