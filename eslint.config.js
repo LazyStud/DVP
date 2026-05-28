@@ -9,7 +9,7 @@ export default [
 
   // Base config for all source JS files
   {
-    files: ['*.js'],
+    files: ['*.js', 'src/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',

@@ -19,6 +19,7 @@ import { pushHash, readHash }                         from './ui/urlState.js';
 import { initPlayback }                               from './ui/playback.js';
 import { initThemeToggle }                            from './ui/themeToggle.js';
 import { initExportButtons, exportSvgAsPng }         from './ui/exportPng.js';
+import { open as openHeadToHead }                    from './ui/headToHead.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
 
@@ -260,6 +261,11 @@ initPlayback();
 initThemeToggle();
 initExportButtons();
 window.exportSvgAsPng = exportSvgAsPng;
+window.__getYearRange = () => state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
+
+// ── Head-to-head button ──────────────────────────────────────────────────────
+const h2hBtn = document.getElementById('h2hBtn');
+if (h2hBtn) { h2hBtn.addEventListener('click', () => { try { openHeadToHead(); } catch (e) { if (DEBUG) console.warn('h2h', e); } }); }
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;

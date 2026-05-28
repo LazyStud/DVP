@@ -45,8 +45,10 @@ On first load the app reads the SQLite database from `./data/db/cricket.db` (shi
    - Heavy aggregation queries offloaded to a Web Worker so the UI stays responsive
 8. **Year range slider** (2000–2025) — dual-thumb slider that re-queries the DB and redraws all layers.
 9. **Leaderboard overlay** — top-N Batting and Bowling tables sourced live from the SQLite DB via `getBattingLeaderboard` / `getBowlingLeaderboard`, respecting the active year-range and format filter.
-10. **Country focus** — click a country (or a bubble) to zoom in and list its venues.
-11. **Tooltips** — hovering a country shows home-win % with a per-format breakdown plus a few notable venues; hovering a venue shows total matches split by format.
+10. **Player drill-down** — clicking a row in the leaderboard opens a `PlayerWindow` panel with a per-year line chart (runs or wickets), a per-format split donut, and the player's top 5 venues by output.
+11. **Head-to-head comparison** — a top-bar 🥊 button opens an overlay where the user picks two countries + format and sees the W/L/D split, biggest wins each way, and top run-scorers / wicket-takers for the pairing. "Biggest wins" mixes runs and wickets margins via a dominance score so a 10-wicket chase outranks small runs wins.
+12. **Country focus** — click a country (or a bubble) to zoom in and list its venues.
+13. **Tooltips** — hovering a country shows home-win % with a per-format breakdown plus a few notable venues; hovering a venue shows total matches split by format.
 
 ---
 
@@ -118,6 +120,8 @@ DVP/
 │       ├── instructionBox.js  Left-side help text (updates per view mode)
 │       ├── legends.js      Right-side spike/bubble legend DOM + format selector
 │       ├── leaderboard.js  Leaderboard overlay — batting + bowling tabs
+│       ├── playerWindow.js Player drill-down panel — per-year + per-format + top-venues
+│       ├── headToHead.js   Head-to-head country comparison overlay
 │       └── yearSlider.js   Dual-thumb year-range slider
 ├── venue.js                VenueWindow popup — radar chart, evolution heatmap, per-venue filters
 ├── venue-worker.js         Web Worker that runs heavy SQL aggregations for the venue panel
