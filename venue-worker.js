@@ -38,7 +38,7 @@ async function ensureDB(){
       dbw = new SQLw.Database(new Uint8Array(cached));
       return;
     }
-  } catch (e) {
+  } catch {
     // fall through
   }
   throw new Error('No DB binary available in worker IndexedDB cache');
@@ -57,7 +57,7 @@ function tableHasColumn(tableName, colName){
   try{
     const rows = queryAll(`PRAGMA table_info(${tableName})`);
     return rows.some(r => String(r.name).toLowerCase() === String(colName).toLowerCase());
-  }catch(e){ return false; }
+  }catch{ return false; }
 }
 
 async function computeForFormat(aliases, yrRange, fmtKey){
@@ -104,7 +104,7 @@ async function computeForFormat(aliases, yrRange, fmtKey){
       const t1 = String(m.team1 || '').trim(), t2 = String(m.team2 || '').trim();
       if (td.includes('bat')) battingFirst = toss;
       else if (toss && (t1 && t2)) battingFirst = (toss === t1 ? t2 : t1);
-    }catch(e){ battingFirst = null; }
+    }catch{ battingFirst = null; }
     if (!battingFirst) continue;
     matchesWithResult += 1;
     if (String(winner).trim() === String(battingFirst).trim()) battingFirstWins += 1;
@@ -141,7 +141,6 @@ self.onmessage = async (ev) => {
       await ensureDB();
       const aliases = Array.isArray(msg.aliases) ? msg.aliases : [];
       const yrRange = msg.yrRange || { min: 2000, max: 2025 };
-      const format = msg.format || 'all';
       const FORMATS = ['test','odi','t20'];
       const byFormat = {};
       for (const f of FORMATS){

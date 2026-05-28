@@ -52,8 +52,11 @@ export default [
 
   // Config/tooling files are ES modules run by Node, not browser scripts
   {
-    files: ['vite.config.js', 'eslint.config.js'],
-    languageOptions: { sourceType: 'module' },
+    files: ['vite.config.js', 'eslint.config.js', 'vitest.config.js'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
   },
 
   prettierConfig,

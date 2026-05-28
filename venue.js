@@ -35,6 +35,7 @@
     }
   }
 
+  // eslint-disable-next-line no-unused-vars
   function workerAggregate(payload){
     return new Promise((resolve, reject) => {
       ensureWorker();
@@ -155,10 +156,19 @@
     </div>
   `;
 
+  // Toss impact card (T-3.3)
+  const tossCard = document.createElement("div");
+  tossCard.className = "venue-card venue-toss";
+  tossCard.innerHTML = `
+    <div class="venue-toss-title">Toss impact — batting first win %</div>
+    <div class="venue-toss-list"></div>
+  `;
+
   contentEl.appendChild(tabBar);
   contentEl.appendChild(topRow);
   contentEl.appendChild(evoWrap);
     contentEl.appendChild(info);
+  contentEl.appendChild(tossCard);
 
     // prepare interactive legend items (format toggles)
     const FORMATS = [
@@ -173,7 +183,7 @@
       btn.setAttribute('data-format', f.key);
       btn.setAttribute('aria-pressed', 'true');
       btn.innerHTML = `<i class="legend-dot" style="background:${f.color};box-shadow:0 2px 6px ${f.color}33;"></i><span class="venue-legend-label">${f.label}</span>`;
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', (_e) => {
         const fmt = btn.getAttribute('data-format');
         const pressed = btn.getAttribute('aria-pressed') === 'true';
         btn.setAttribute('aria-pressed', pressed ? 'false' : 'true');
@@ -252,7 +262,7 @@
     // ESC closes
     window.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
     // track current year range for queries and update badge
-    let currentYearRange = { min: 2000, max: 2025 };
+    const currentYearRange = { min: 2000, max: 2025 };
     // current format (shared between listeners)
     let currentFormat = (window.selectedFormat || 'all');
 
@@ -366,7 +376,7 @@
     const metricsByFormat = (svgEl._metrics && svgEl._metrics.byFormat) ? svgEl._metrics.byFormat : null;
     if (!metricsByFormat) {
       // placeholder polygon (semi-filled)
-      const placeholder = d3.range(n).map(i => 0.6);
+      const placeholder = d3.range(n).map(() => 0.6);
       const line = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
       g.append("path").datum(placeholder).attr("d", line).attr("fill", "rgba(36,180,126,0.18)").attr("stroke", "var(--accent)");
       return;
@@ -474,7 +484,7 @@
     // If there are no matches across all formats, show a neutral placeholder and
     // render labels as em-dashes to avoid implying numeric data.
     if (totalMatchesAcross === 0) {
-      const placeholder = d3.range(n).map(i => 0.35);
+      const placeholder = d3.range(n).map(() => 0.35);
       const linePh = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
       g.append("path").datum(placeholder).attr("d", linePh).attr("fill", "rgba(120,120,120,0.06)")
         .attr("stroke", "rgba(120,120,120,0.24)");
@@ -549,18 +559,11 @@
     // fallback to country+city if no aliases
     if (!aliases.length && datum.country && datum.city) aliases.push((String(datum.city) + ' ' + String(datum.country)).toLowerCase());
 
-    // prepare exact-match IN clause and LIKE fallback
-  // NOTE: matches.csv defines the venue column as `venue_name` (and source CSVs vary), avoid referencing m.venue which doesn't exist
-  const exactClause = aliases.length ? `LOWER(COALESCE(m.venue_name, '')) IN (${aliases.map(()=>'?').join(',')})` : null;
-    const exactParams = aliases.slice();
-  const likeClause = aliases.length ? aliases.map(_ => `LOWER(COALESCE(m.venue_name, '')) LIKE ?`).join(' OR ') : `LOWER(COALESCE(m.venue_name, '')) LIKE ?`;
-    const likeParams = aliases.length ? aliases.map(p => `%${p}%`) : [`%${(datum.venue||datum.name||'').toLowerCase()}%`];
     // New simplified aggregation: query the `venue_stats` table directly and
     // compute per-format aggregates. This replaces the previous multi-table
     // SQL and worker-based approach.
     try {
       // Build SQL WHERE clause for venue name aliases using LIKE
-      const whereParts = [];
       const params = [yrRange.min, yrRange.max];
       const aliasLikes = (aliases.length ? aliases.map(_ => `%${_}%`) : [`%${(datum.venue||datum.name||'').toLowerCase()}%`]);
       const likeExprs = aliasLikes.map(_ => `LOWER(venue_name) LIKE ?`).join(' OR ');
@@ -662,7 +665,7 @@
             };
           });
           // keep innings-by-no available for merging later
-          try { panel._fallback_innings = innMap; } catch(e) { panel._fallback_innings = null; }
+          try { panel._fallback_innings = innMap; } catch { panel._fallback_innings = null; }
         } catch (fbErr) {
           if (DEBUG) console.warn('fallback per-innings aggregation failed', fbErr);
         }
@@ -769,6 +772,37 @@
         });
         heat.appendChild(list);
       }
+
+      // ── Toss impact card (T-3.3) ────────────────────────────────────────────
+      try {
+        if (window.__getVenueTossStats) {
+          const tossData = await window.__getVenueTossStats(aliases, yrRange, format);
+          const tossList = panel.querySelector('.venue-toss-list');
+          if (tossList && tossData && tossData.byFormat) {
+            tossList.innerHTML = '';
+            const fmtOrder = ['test', 'odi', 't20'];
+            const fmtColors = { test: '#e6cf9a', odi: '#2dd4bf', t20: '#a78bfa' };
+            const fmtLabels = { test: 'Test', odi: 'ODI', t20: 'T20I' };
+            fmtOrder.forEach(fmt => {
+              const t = tossData.byFormat[fmt];
+              const row = document.createElement('div');
+              row.className = 'venue-toss-row';
+              if (!t || !t.decided) {
+                row.innerHTML = `<span class="venue-toss-format-dot" style="background:${fmtColors[fmt]}"></span><span class="venue-toss-format-key">${fmtLabels[fmt]}</span><span class="venue-toss-label">n=0</span><span class="venue-toss-value">—</span>`;
+              } else {
+                const pct = Math.round(t.pct * 100);
+                const lo  = Math.round(t.lo * 100);
+                const hi  = Math.round(t.hi * 100);
+                row.innerHTML = `<span class="venue-toss-format-dot" style="background:${fmtColors[fmt]}"></span><span class="venue-toss-format-key">${fmtLabels[fmt]}</span><span class="venue-toss-label">n=${t.decided}</span><span class="venue-toss-value">${pct}% <span class="ci">[${lo}–${hi}]</span></span>`;
+              }
+              tossList.appendChild(row);
+            });
+          }
+        }
+      } catch (tossErr) {
+        if (DEBUG) console.warn('Toss impact card render failed', tossErr);
+      }
+
       return;
     } catch (e) {
       if (DEBUG) console.warn('fetchAndRender venue metrics failed', e);
@@ -885,7 +919,7 @@
       const cellH = Math.max(18, Math.floor(ih / metrics.length));
 
       // draw grid
-      const rowsG = g.append('g').attr('class','heat-rows');
+      g.append('g').attr('class','heat-rows');
       metrics.forEach((m, ri) => {
         const y = ri * cellH;
         // metric label
@@ -985,7 +1019,7 @@
 
     if (rsvg) {
       // parse year badge for current range
-      let yr = badgeEl?.textContent || "2000–2025";
+      const yr = badgeEl?.textContent || "2000–2025";
       let min = 2000, max = 2025;
       try{
         const m = yr.match(/(\d{4})\s*[–-]\s*(\d{4})/);
@@ -1033,7 +1067,7 @@
     panel.style.transform = '';
     delete panel.dataset.centered;
     window.dispatchEvent(new CustomEvent("venuewindow:close"));
-    try { if (_prevFocus && typeof _prevFocus.focus === 'function') _prevFocus.focus(); } catch (_) {}
+    try { if (_prevFocus && typeof _prevFocus.focus === 'function') _prevFocus.focus(); } catch { /* ignore */ }
     _prevFocus = null;
   }
 

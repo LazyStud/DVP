@@ -3,7 +3,7 @@ import { DEBUG }                                      from './debug.js';
 import { state }                                      from './state.js';
 import { DB_URL, YEAR_MIN, YEAR_MAX, PALETTES, SPIN_DEG_PER_SEC } from './config.js';
 import { loadVenueCountries }                         from './data/queries.js';
-import { computeChoropleth, computeFlows }            from './data/queries.js';
+import { computeChoropleth, computeFlows, getVenueTossStats, getVenueTossBias } from './data/queries.js';
 import { drawStaticLayers }                           from './layers/sphere.js';
 import { drawCountries, applyCountryHighlight, applyChoropleth, updateHoverTransform } from './layers/countries.js';
 import { drawSpikes, updateSpikesPosition, renderSpikeLegend } from './layers/spikes.js';
@@ -20,6 +20,7 @@ import { initPlayback }                               from './ui/playback.js';
 import { initThemeToggle }                            from './ui/themeToggle.js';
 import { initExportButtons, exportSvgAsPng }         from './ui/exportPng.js';
 import { open as openHeadToHead }                    from './ui/headToHead.js';
+import { open as openInsights }                      from './ui/insights.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
 
@@ -263,9 +264,17 @@ initExportButtons();
 window.exportSvgAsPng = exportSvgAsPng;
 window.__getYearRange = () => state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
 
+// ── Expose toss query functions for venue.js IIFE ────────────────────────────
+window.__getVenueTossStats = getVenueTossStats;
+window.__getVenueTossBias  = getVenueTossBias;
+
 // ── Head-to-head button ──────────────────────────────────────────────────────
 const h2hBtn = document.getElementById('h2hBtn');
 if (h2hBtn) { h2hBtn.addEventListener('click', () => { try { openHeadToHead(); } catch (e) { if (DEBUG) console.warn('h2h', e); } }); }
+
+// ── Insights button (T-3.3) ──────────────────────────────────────────────────
+const insightsBtn = document.getElementById('insightsBtn');
+if (insightsBtn) { insightsBtn.addEventListener('click', () => { try { openInsights(); } catch (e) { if (DEBUG) console.warn('insights', e); } }); }
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;

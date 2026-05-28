@@ -47,8 +47,9 @@ On first load the app reads the SQLite database from `./data/db/cricket.db` (shi
 9. **Leaderboard overlay** — top-N Batting and Bowling tables sourced live from the SQLite DB via `getBattingLeaderboard` / `getBowlingLeaderboard`, respecting the active year-range and format filter.
 10. **Player drill-down** — clicking a row in the leaderboard opens a `PlayerWindow` panel with a per-year line chart (runs or wickets), a per-format split donut, and the player's top 5 venues by output.
 11. **Head-to-head comparison** — a top-bar 🥊 button opens an overlay where the user picks two countries + format and sees the W/L/D split, biggest wins each way, and top run-scorers / wicket-takers for the pairing. "Biggest wins" mixes runs and wickets margins via a dominance score so a 10-wicket chase outranks small runs wins.
-12. **Country focus** — click a country (or a bubble) to zoom in and list its venues.
-13. **Tooltips** — hovering a country shows home-win % with a per-format breakdown plus a few notable venues; hovering a venue shows total matches split by format.
+12. **Toss impact analysis** — each venue popup includes a "Toss impact" card showing batting-first win % with Wilson 95% CI per format. A top-bar 📊 button opens a global "Toss Impact Insights" overlay ranking the top 10 and bottom 10 venues by toss bias (suppressing small-sample venues automatically via the CI lower bound).
+13. **Country focus** — click a country (or a bubble) to zoom in and list its venues.
+14. **Tooltips** — hovering a country shows home-win % with a per-format breakdown plus a few notable venues; hovering a venue shows total matches split by format.
 
 ---
 

@@ -5,6 +5,7 @@ let SQL, db;
 
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
+// eslint-disable-next-line no-unused-vars
 function reportError(scope, err) { if (DEBUG) console.warn('[' + scope + ']', err); }
 
 const IDB_NAME  = "cricket-sqlite-cache";
