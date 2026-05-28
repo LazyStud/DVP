@@ -8,6 +8,42 @@ import { loadVenuesForCountry } from '../data/queries.js';
 
 // ── Core tooltip helpers ─────────────────────────────────────────────────────
 
+/**
+ * Generate a tiny inline SVG sparkline string.
+ * Pure function — testable without DOM.
+ *
+ * @param {{ year: number, count: number }[]} points - sorted by year ascending
+ * @param {number} width  - SVG width in px
+ * @param {number} height - SVG height in px
+ * @param {string} stroke - line colour (default '#4fc3f7')
+ * @returns {string} SVG markup
+ */
+export function sparklineSvg(points, width = 60, height = 24, stroke = '#4fc3f7') {
+  if (!points || !points.length) return '';
+
+  const years  = points.map(p => p.year);
+  const counts = points.map(p => p.count);
+  const xMin   = Math.min(...years);
+  const xMax   = Math.max(...years);
+  const yMax   = Math.max(...counts, 1);
+  const pad    = 2; // pixel padding inside SVG
+
+  const xScale = xMax === xMin
+    ? () => pad
+    : y => pad + ((y - xMin) / (xMax - xMin)) * (width - 2 * pad);
+  const yScale = c => height - pad - ((c / yMax) * (height - 2 * pad));
+
+  const pts = points.map(p => `${xScale(p.year).toFixed(1)},${yScale(p.count).toFixed(1)}`).join(' ');
+  const dots = points.map(p => `<circle cx="${xScale(p.year).toFixed(1)}" cy="${yScale(p.count).toFixed(1)}" r="1.2" fill="${stroke}"/>`).join('');
+
+  return `<svg width="${width}" height="${height}" style="display:block;margin-top:2px" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+    ${dots}
+  </svg>`;
+}
+
+// ── Core tooltip helpers ─────────────────────────────────────────────────────
+
 export function escapeHtml(s) {
   return String(s || '')
     .replace(/&/g, '&amp;')
@@ -121,6 +157,15 @@ export async function showCountryTooltip(ev, feature) {
       html += `<div style="min-width:80px">${f.toUpperCase()}: <strong style="color:#fff">${mp}</strong><div style="color:#9fb6c8;font-size:0.78rem">win ${wpct}%</div></div>`;
     }
     html += '</div>';
+    // Sparkline of matches hosted per year
+    if (rec.byYear) {
+      const pts = Object.entries(rec.byYear)
+        .map(([y, c]) => ({ year: +y, count: c }))
+        .sort((a, b) => a.year - b.year);
+      if (pts.length) {
+        html += `<div style="margin-top:6px;color:#bcd;font-size:0.78rem">Matches per year${sparklineSvg(pts)}</div>`;
+      }
+    }
     try {
       const venues = await loadVenuesForCountry(cname);
       if (venues && venues.length) {
