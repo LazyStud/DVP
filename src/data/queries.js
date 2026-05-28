@@ -701,3 +701,69 @@ export async function getVenueTossBias(yrRange, format = 'all', minMatches = 20)
 
   return { top10, bottom10, total: enriched.length };
 }
+
+// ── Search index queries ──────────────────────────────────────────────────────
+
+export async function getAllSearchVenues() {
+  await DB.init(window._DB_URL || './data/db/cricket.db');
+  const schema = await getVenueSchema();
+  if (!schema) return [];
+  try {
+    const latCol  = schema.latCol  || 'latitude';
+    const lonCol  = schema.lonCol  || 'longitude';
+    const ctyCol  = schema.countryCol || 'country';
+    const rows = DB.queryAll(
+      `SELECT venue,
+              COALESCE(city, '') AS city,
+              COALESCE(${ctyCol}, '') AS country,
+              ${latCol}  AS latitude,
+              ${lonCol}  AS longitude
+       FROM venues
+       WHERE ${latCol} IS NOT NULL AND ${lonCol} IS NOT NULL
+       ORDER BY venue`
+    ) || [];
+    return rows.map(r => ({
+      venue:     String(r.venue     || '').trim(),
+      city:      String(r.city      || '').trim(),
+      country:   String(r.country   || '').trim(),
+      latitude:  +r.latitude,
+      longitude: +r.longitude,
+    })).filter(r => r.venue && isFinite(r.latitude) && isFinite(r.longitude));
+  } catch (e) {
+    if (DEBUG) console.warn('getAllSearchVenues failed', e);
+    return [];
+  }
+}
+
+export async function getAllSearchPlayers() {
+  await DB.init(window._DB_URL || './data/db/cricket.db');
+  try {
+    const batters = DB.queryAll(
+      `SELECT batter AS name, team, 'batting' AS kind
+       FROM batting_innings
+       GROUP BY batter, team
+       HAVING COUNT(*) >= 5
+       ORDER BY name`
+    ) || [];
+    const bowlers = DB.queryAll(
+      `SELECT bowler AS name, team, 'bowling' AS kind
+       FROM bowling_innings
+       GROUP BY bowler, team
+       HAVING COUNT(*) >= 5
+       ORDER BY name`
+    ) || [];
+    // Deduplicate: keep batting entry if player appears in both
+    const seen = new Set();
+    const out = [];
+    for (const r of [...batters, ...bowlers]) {
+      const key = String(r.name || '').trim().toLowerCase();
+      if (!key || seen.has(key + r.kind)) continue;
+      seen.add(key + r.kind);
+      out.push({ name: String(r.name).trim(), team: String(r.team || '').trim(), kind: r.kind });
+    }
+    return out;
+  } catch (e) {
+    if (DEBUG) console.warn('getAllSearchPlayers failed', e);
+    return [];
+  }
+}

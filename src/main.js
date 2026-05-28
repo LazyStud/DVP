@@ -25,6 +25,7 @@ import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
 import * as Typology                                   from './data/typology.js';
 import { initDecadeChart }                             from './ui/decadeChart.js';
+import { initSearch }                                  from './ui/search.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -284,6 +285,9 @@ if (h2hBtn) { h2hBtn.addEventListener('click', () => { try { openHeadToHead(); }
 // ── Insights button (T-3.3) ──────────────────────────────────────────────────
 const insightsBtn = document.getElementById('insightsBtn');
 if (insightsBtn) { insightsBtn.addEventListener('click', () => { try { openInsights(); } catch (e) { if (DEBUG) console.warn('insights', e); } }); }
+
+// ── Global search (T-3.6) ────────────────────────────────────────────────────
+try { initSearch(); } catch (e) { if (DEBUG) console.warn('search init failed', e); }
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;
