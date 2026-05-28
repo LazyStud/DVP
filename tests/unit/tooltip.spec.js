@@ -13,17 +13,43 @@ describe('sparklineSvg', () => {
     expect(sparklineSvg([])).toBe('');
   });
 
-  it('returns a valid SVG string for a single point', () => {
+  it('returns a valid SVG string with default dimensions', () => {
     const svg = sparklineSvg([{ year: 2015, count: 10 }]);
     expect(svg).toContain('<svg');
-    expect(svg).toContain('width="60"');
-    expect(svg).toContain('height="24"');
+    expect(svg).toContain('width="120"');
+    expect(svg).toContain('height="44"');
     expect(svg).toContain('<polyline');
     expect(svg).toContain('<circle');
     expect(svg).toContain('</svg>');
   });
 
-  it('returns polyline with multiple points', () => {
+  it('includes y-axis labels (0 and max)', () => {
+    const svg = sparklineSvg([{ year: 2010, count: 10 }]);
+    expect(svg).toContain('>0<');
+    expect(svg).toContain('>10<');
+  });
+
+  it('formats large y-max with k suffix', () => {
+    const svg = sparklineSvg([{ year: 2010, count: 2500 }]);
+    expect(svg).toContain('>2.5k<');
+  });
+
+  it('includes x-axis labels (first and last year)', () => {
+    const svg = sparklineSvg([
+      { year: 2010, count: 5 },
+      { year: 2015, count: 15 },
+      { year: 2020, count: 8 },
+    ]);
+    expect(svg).toContain('>2010<');
+    expect(svg).toContain('>2020<');
+  });
+
+  it('includes baseline line', () => {
+    const svg = sparklineSvg([{ year: 2010, count: 5 }]);
+    expect(svg).toContain('<line');
+  });
+
+  it('returns polyline with multiple points and dots', () => {
     const svg = sparklineSvg([
       { year: 2010, count: 5 },
       { year: 2015, count: 15 },
@@ -35,9 +61,9 @@ describe('sparklineSvg', () => {
   });
 
   it('accepts custom width, height, and stroke', () => {
-    const svg = sparklineSvg([{ year: 2010, count: 5 }], 120, 40, '#ff0000');
-    expect(svg).toContain('width="120"');
-    expect(svg).toContain('height="40"');
+    const svg = sparklineSvg([{ year: 2010, count: 5 }], 200, 60, '#ff0000');
+    expect(svg).toContain('width="200"');
+    expect(svg).toContain('height="60"');
     expect(svg).toContain('stroke="#ff0000"');
     expect(svg).toContain('fill="#ff0000"');
   });
@@ -48,6 +74,7 @@ describe('sparklineSvg', () => {
       { year: 2015, count: 7 },
     ]);
     expect(svg).toContain('<polyline');
+    expect(svg).toContain('>2015<');
   });
 
   it('handles all-zero counts (yMax capped at 1)', () => {

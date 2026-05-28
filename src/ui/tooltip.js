@@ -9,16 +9,17 @@ import { loadVenuesForCountry } from '../data/queries.js';
 // ── Core tooltip helpers ─────────────────────────────────────────────────────
 
 /**
- * Generate a tiny inline SVG sparkline string.
+ * Generate a tiny inline SVG sparkline with axis labels.
  * Pure function — testable without DOM.
  *
  * @param {{ year: number, count: number }[]} points - sorted by year ascending
- * @param {number} width  - SVG width in px
- * @param {number} height - SVG height in px
- * @param {string} stroke - line colour (default '#4fc3f7')
+ * @param {number} width     - SVG width in px (default 120)
+ * @param {number} height    - SVG height in px (default 40)
+ * @param {string} stroke    - line colour (default '#4fc3f7')
+ * @param {string} textColor - axis label colour (default '#8899aa')
  * @returns {string} SVG markup
  */
-export function sparklineSvg(points, width = 60, height = 24, stroke = '#4fc3f7') {
+export function sparklineSvg(points, width = 120, height = 44, stroke = '#4fc3f7', textColor = '#8899aa') {
   if (!points || !points.length) return '';
 
   const years  = points.map(p => p.year);
@@ -26,19 +27,40 @@ export function sparklineSvg(points, width = 60, height = 24, stroke = '#4fc3f7'
   const xMin   = Math.min(...years);
   const xMax   = Math.max(...years);
   const yMax   = Math.max(...counts, 1);
-  const pad    = 2; // pixel padding inside SVG
+
+  // Margins for axis labels
+  const ml = 18; // left margin for y-axis labels
+  const mb = 14; // bottom margin for x-axis labels
+  const mr = 4;  // right padding
+  const mt = 2;  // top padding
+  const plotW = width - ml - mr;
+  const plotH = height - mt - mb;
 
   const xScale = xMax === xMin
-    ? () => pad
-    : y => pad + ((y - xMin) / (xMax - xMin)) * (width - 2 * pad);
-  const yScale = c => height - pad - ((c / yMax) * (height - 2 * pad));
+    ? () => ml
+    : y => ml + ((y - xMin) / (xMax - xMin)) * plotW;
+  const yScale = c => mt + plotH - ((c / yMax) * plotH);
 
   const pts = points.map(p => `${xScale(p.year).toFixed(1)},${yScale(p.count).toFixed(1)}`).join(' ');
   const dots = points.map(p => `<circle cx="${xScale(p.year).toFixed(1)}" cy="${yScale(p.count).toFixed(1)}" r="1.2" fill="${stroke}"/>`).join('');
 
+  // Y-axis: min (0) and max labels
+  const yMaxLabel = yMax >= 1000 ? `${(yMax / 1000).toFixed(1)}k` : String(yMax);
+  const y0 = yScale(0).toFixed(1);
+  const y1 = yScale(yMax).toFixed(1);
+
+  // X-axis: first and last year labels
+  const xFirst = xScale(xMin).toFixed(0);
+  const xLast  = xScale(xMax).toFixed(0);
+
   return `<svg width="${width}" height="${height}" style="display:block;margin-top:2px" xmlns="http://www.w3.org/2000/svg">
-    <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+    <line x1="${ml}" y1="${yScale(0).toFixed(1)}" x2="${ml + plotW}" y2="${yScale(0).toFixed(1)}" stroke="${textColor}" stroke-width="0.5" opacity="0.4"/>
+    <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
     ${dots}
+    <text x="${ml - 2}" y="${y0}" fill="${textColor}" font-size="8" text-anchor="end" dominant-baseline="central">0</text>
+    <text x="${ml - 2}" y="${y1}" fill="${textColor}" font-size="8" text-anchor="end" dominant-baseline="central">${yMaxLabel}</text>
+    <text x="${xFirst}" y="${height - 2}" fill="${textColor}" font-size="8" text-anchor="middle">${xMin}</text>
+    <text x="${xLast}" y="${height - 2}" fill="${textColor}" font-size="8" text-anchor="middle">${xMax}</text>
   </svg>`;
 }
 
