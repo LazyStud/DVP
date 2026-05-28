@@ -122,7 +122,15 @@ export async function showVenueTooltip(ev, d) {
       </div>`;
     showTooltipAt(ev.clientX, ev.clientY, basic + '<div style="color:#bcd">Loading…</div>');
 
-    const like = `%${(String(name || d.names || '').toLowerCase()).replace(/%/g, '')}%`;
+    // Build alias list the same way the venue detail does so match counts stay in sync.
+    const _aliasSet = new Set();
+    const _push = s => { const v = String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (v) _aliasSet.add(v); };
+    _push(name);
+    _push(d.name);
+    if (d.names) String(d.names).split(';').forEach(_push);
+    const _likes = Array.from(_aliasSet).map(a => `%${a.replace(/%/g, '')}%`);
+    const _likeExprs = _likes.length ? _likes.map(() => `LOWER(venue_name) LIKE ?`).join(' OR ') : '1=0';
+
     let agg = { matches: 0, t20_matches: 0, odi_matches: 0, test_matches: 0 };
     try {
       const rows = DB.queryAll(
@@ -130,7 +138,7 @@ export async function showVenueTooltip(ev, d) {
                 SUM(CASE WHEN LOWER(format) LIKE '%t20%'  THEN CAST(matches AS INT) ELSE 0 END) AS t20_matches,
                 SUM(CASE WHEN LOWER(format) LIKE '%odi%'  THEN CAST(matches AS INT) ELSE 0 END) AS odi_matches,
                 SUM(CASE WHEN LOWER(format) LIKE '%test%' THEN CAST(matches AS INT) ELSE 0 END) AS test_matches
-         FROM venue_stats WHERE LOWER(venue_name) LIKE ?`, [like]
+         FROM venue_stats WHERE (${_likeExprs})`, _likes
       ) || [];
       if (rows[0]) agg = rows[0];
     } catch (_) {}

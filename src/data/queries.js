@@ -508,28 +508,51 @@ export async function getHeadToHeadTopPlayers(teamA, teamB, minYear, maxYear, fo
 export async function getVenueTossStats(aliases, yrRange, format = 'all') {
   await DB.init(window._DB_URL || './data/db/cricket.db');
 
-  const formats = ['test', 'odi', 't20'];
-  const aliasLikes = (aliases && aliases.length ? aliases : []);
-  const likeExprs = aliasLikes.length
-    ? aliasLikes.map(() => `LOWER(COALESCE(m.venue_name, '')) LIKE ?`).join(' OR ')
+  // Expand aliases via the DB's venues table to pick up historical names
+  // (e.g. "sky stadium" → also "westpac stadium"). The venues table has a
+  // `names` column with semicolon-separated historical names for each ground.
+  const expandedSet = new Set((aliases || []).map(a => String(a).toLowerCase().trim()));
+  try {
+    if (expandedSet.size > 0) {
+      const aliasArr = Array.from(expandedSet);
+      const likeFrags = aliasArr.flatMap(() => [`LOWER(venue) LIKE ?`, `LOWER(names) LIKE ?`]).join(' OR ');
+      const likeParams = aliasArr.flatMap(a => [`%${a}%`, `%${a}%`]);
+      const venueRows = DB.queryAll(`SELECT names FROM venues WHERE ${likeFrags}`, likeParams) || [];
+      for (const row of venueRows) {
+        if (row.names) {
+          String(row.names).split(';').map(n => n.trim().toLowerCase()).filter(Boolean)
+            .forEach(n => expandedSet.add(n));
+        }
+      }
+    }
+  } catch (e) {
+    if (DEBUG) console.warn('getVenueTossStats alias expansion failed', e);
+  }
+
+  const allAliases = Array.from(expandedSet);
+  const likeExprs = allAliases.length
+    ? allAliases.map(() => `LOWER(COALESCE(vsf.venue_name, '')) LIKE ?`).join(' OR ')
     : '1=0';
 
+  const formats = ['test', 'odi', 't20'];
   const byFormat = {};
 
   for (const fmt of formats) {
     const fmtPatterns = Formats.formatLikePatterns(fmt);
     const fmtCond = fmtPatterns.length
-      ? `AND (${fmtPatterns.map(() => `LOWER(COALESCE(m.format,'')) LIKE ?`).join(' OR ')})`
+      ? `AND (${fmtPatterns.map(() => `LOWER(COALESCE(vsf.format,'')) LIKE ?`).join(' OR ')})`
       : '';
-    const params = [yrRange.min, yrRange.max, ...aliasLikes.map(x => `%${x}%`), ...fmtPatterns];
+    const params = [yrRange.min, yrRange.max, ...allAliases.map(a => `%${a}%`), ...fmtPatterns];
 
     let rows = [];
     try {
+      // Use venue_stats_format which has first_bat_wins/matches_with_result pre-aggregated
+      // and uses the same raw venue names as the matches table.
       rows = DB.queryAll(`
-        SELECT m.team1, m.team2, m.toss_winner, m.toss_decision, m.winner,
-               COALESCE(m.result_type, '') AS result_type
-        FROM matches m
-        WHERE CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
+        SELECT SUM(vsf.matches_with_result) AS decided,
+               SUM(vsf.first_bat_wins)      AS wins
+        FROM venue_stats_format vsf
+        WHERE vsf.year BETWEEN ? AND ?
           AND (${likeExprs})
           ${fmtCond}
       `, params) || [];
@@ -539,31 +562,8 @@ export async function getVenueTossStats(aliases, yrRange, format = 'all') {
       continue;
     }
 
-    let decided = 0;
-    let wins = 0;
-
-    for (const r of rows) {
-      const rt = String(r.result_type || '').toLowerCase();
-      if (rt.includes('no result') || rt === 'draw' || rt === 'tie' || rt === 'tied') continue;
-
-      const winner = String(r.winner || '').trim();
-      if (!winner) continue;
-
-      let battingFirst = null;
-      const decision = String(r.toss_decision || '').toLowerCase();
-      if (decision.includes('bat')) {
-        battingFirst = String(r.toss_winner || '').trim();
-      } else {
-        // field decision — batting first is the other team
-        const tossWinner = String(r.toss_winner || '').trim();
-        battingFirst = tossWinner === String(r.team1 || '') ? String(r.team2 || '') : String(r.team1 || '');
-      }
-
-      if (!battingFirst) continue;
-      decided += 1;
-      if (winner === battingFirst) wins += 1;
-    }
-
+    const decided = Number(rows[0]?.decided || 0);
+    const wins    = Number(rows[0]?.wins    || 0);
     const ci = wilsonInterval(wins, decided);
     byFormat[fmt] = { decided, battingFirstWins: wins, pct: ci.p, lo: ci.lo, hi: ci.hi };
   }
@@ -581,52 +581,72 @@ export async function getVenueTossStats(aliases, yrRange, format = 'all') {
 export async function getVenueTossBias(yrRange, format = 'all', minMatches = 20) {
   await DB.init(window._DB_URL || './data/db/cricket.db');
 
+  // Build canonical-name map from venues table (historical name → canonical venue name)
+  const historicalToCanonical = new Map();
+  try {
+    const venueRows = DB.queryAll('SELECT venue, names FROM venues') || [];
+    for (const row of venueRows) {
+      const canonical = String(row.venue || '').trim();
+      if (!canonical) continue;
+      historicalToCanonical.set(canonical.toLowerCase(), canonical);
+      if (row.names) {
+        String(row.names).split(';').forEach(n => {
+          const name = n.trim().toLowerCase();
+          if (name) historicalToCanonical.set(name, canonical);
+        });
+      }
+    }
+  } catch (e) {
+    if (DEBUG) console.warn('getVenueTossBias venue map failed', e);
+  }
+
   const fmtPatterns = Formats.formatLikePatterns(format);
   const fmtCond = fmtPatterns.length
-    ? `AND (${fmtPatterns.map(() => `LOWER(COALESCE(m.format,'')) LIKE ?`).join(' OR ')})`
+    ? `AND (${fmtPatterns.map(() => `LOWER(COALESCE(vsf.format,'')) LIKE ?`).join(' OR ')})`
     : '';
 
-  let rows = [];
+  let rawRows = [];
   try {
     const sql = `
-      SELECT venue_name,
-             COUNT(*) AS total,
-             SUM(CASE WHEN winner = battingFirst THEN 1 ELSE 0 END) AS bf_wins
-      FROM (
-        SELECT m.venue_name, m.winner,
-               CASE WHEN LOWER(m.toss_decision) LIKE '%bat%' THEN m.toss_winner
-                    WHEN m.toss_winner = m.team1 THEN m.team2
-                    ELSE m.team1
-               END AS battingFirst,
-               COALESCE(m.result_type, '') AS rt
-        FROM matches m
-        WHERE CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ?
-          ${fmtCond}
-          AND m.winner <> '' AND m.winner IS NOT NULL
-          AND m.toss_winner <> ''
-          AND LOWER(COALESCE(m.result_type,'')) NOT LIKE '%no result%'
-          AND LOWER(COALESCE(m.result_type,'')) NOT LIKE '%draw%'
-          AND LOWER(COALESCE(m.result_type,'')) NOT LIKE '%tie%'
-      )
-      WHERE battingFirst IS NOT NULL
-      GROUP BY venue_name
-      HAVING COUNT(*) >= ?
+      SELECT vsf.venue_name,
+             SUM(vsf.first_bat_wins)      AS bf_wins,
+             SUM(vsf.matches_with_result) AS total
+      FROM venue_stats_format vsf
+      WHERE vsf.year BETWEEN ? AND ?
+        ${fmtCond}
+      GROUP BY vsf.venue_name
     `;
-    rows = DB.queryAll(sql, [yrRange.min, yrRange.max, ...fmtPatterns, minMatches]) || [];
+    rawRows = DB.queryAll(sql, [yrRange.min, yrRange.max, ...fmtPatterns]) || [];
   } catch (e) {
     if (DEBUG) console.warn('getVenueTossBias failed', e);
     return { top10: [], bottom10: [], total: 0 };
   }
 
-  const enriched = rows.map(r => ({
-    venue: r.venue_name,
-    n: +r.total || 0,
-    pct: +r.total ? (+r.bf_wins || 0) / +r.total : 0,
-    ...wilsonInterval(+r.bf_wins || 0, +r.total || 0),
-  }));
+  // Re-aggregate by canonical name in JS
+  const byCanonical = new Map();
+  for (const r of rawRows) {
+    const rawName  = String(r.venue_name || '').trim();
+    const canonical = historicalToCanonical.get(rawName.toLowerCase()) || rawName;
+    const existing = byCanonical.get(canonical) || { venue: canonical, bf_wins: 0, total: 0 };
+    existing.bf_wins += Number(r.bf_wins || 0);
+    existing.total   += Number(r.total   || 0);
+    byCanonical.set(canonical, existing);
+  }
 
-  const top10    = enriched.slice().sort((a, b) => b.lo - a.lo).slice(0, 10);
-  const bottom10 = enriched.slice().sort((a, b) => a.hi - b.hi).slice(0, 10);
+  const enriched = [];
+  for (const agg of byCanonical.values()) {
+    if (agg.total < minMatches) continue;
+    enriched.push({
+      venue: agg.venue,
+      wins:  agg.bf_wins,
+      n:     agg.total,
+      pct:   agg.total ? agg.bf_wins / agg.total : 0,
+      ...wilsonInterval(agg.bf_wins, agg.total),
+    });
+  }
+
+  const top10    = enriched.slice().sort((a, b) => b.pct - a.pct).slice(0, 10);
+  const bottom10 = enriched.slice().sort((a, b) => a.pct - b.pct).slice(0, 10);
 
   return { top10, bottom10, total: enriched.length };
 }

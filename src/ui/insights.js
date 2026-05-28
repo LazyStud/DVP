@@ -5,7 +5,7 @@
 import { DEBUG } from '../debug.js';
 import { YEAR_MIN, YEAR_MAX } from '../config.js';
 
-let panel, backdrop, contentEl, fmtBtnsEl;
+let panel, backdrop, contentEl, fmtBtnsEl, footerEl;
 let isOpen = false;
 let currentFormat = 'all';
 let _prevFocus = null;
@@ -43,6 +43,10 @@ function ensurePanel() {
 
   contentEl.appendChild(cols);
   panel.appendChild(contentEl);
+
+  footerEl = document.createElement('div');
+  footerEl.className = 'insights-footer';
+  panel.appendChild(footerEl);
 
   document.body.appendChild(panel);
   wireDismissals();
@@ -150,9 +154,11 @@ async function refresh() {
   if (bottomList) bottomList.innerHTML = loadHtml;
 
   try {
-    const { top10, bottom10 } = await fn(yr, currentFormat, 20);
+    const minM = currentFormat === 'test' ? 8 : currentFormat === 'odi' ? 12 : 15;
+    const { top10, bottom10 } = await fn(yr, currentFormat, minM);
     renderList('.insights-top .insights-list', top10);
     renderList('.insights-bottom .insights-list', bottom10);
+    if (footerEl) footerEl.textContent = `Only venues with at least ${minM} decided matches (draws & no-results excluded) are shown.`;
   } catch (e) {
     if (DEBUG) console.warn('insights query failed', e);
     if (topList)    topList.innerHTML    = '<li class="insights-placeholder">Could not load data</li>';
@@ -166,14 +172,18 @@ function renderList(sel, rows) {
 
   const colsHtml = rows
     .map((r, i) => {
-      const pct = Math.round(r.pct * 100);
-      const lo = Math.round(r.lo * 100);
-      const hi = Math.round(r.hi * 100);
+      const pct  = Math.round(r.pct * 100);
+      const wins = r.wins || 0;
+      const n    = r.n    || 0;
       return `<li class="insights-item">
         <span class="insights-rank">#${i + 1}</span>
         <span class="insights-venue">${esc(r.venue)}</span>
         <span class="insights-pct">${pct}%</span>
-        <span class="insights-ci">[${lo}–${hi}] · n=${r.n}</span>
+        <span class="insights-bar-wrap">
+          <span class="insights-bar" style="width:${pct}%"></span>
+          <span class="insights-bar-mid"></span>
+        </span>
+        <span class="insights-count">${wins}/${n}</span>
       </li>`;
     })
     .join('');

@@ -822,13 +822,20 @@
               const t = tossData.byFormat[fmt];
               const row = document.createElement('div');
               row.className = 'venue-toss-row';
+              const leftHtml = `<span class="venue-toss-left"><span class="venue-toss-format-dot" style="background:${fmtColors[fmt]}"></span><span class="venue-toss-format-key">${fmtLabels[fmt]}</span></span>`;
               if (!t || !t.decided) {
-                row.innerHTML = `<span class="venue-toss-format-dot" style="background:${fmtColors[fmt]}"></span><span class="venue-toss-format-key">${fmtLabels[fmt]}</span><span class="venue-toss-label">n=0</span><span class="venue-toss-value">—</span>`;
+                row.innerHTML = `${leftHtml}<span class="venue-toss-bar-wrap"></span><span class="venue-toss-value venue-toss-nodata">—</span><span></span>`;
               } else {
-                const pct = Math.round(t.pct * 100);
-                const lo  = Math.round(t.lo * 100);
-                const hi  = Math.round(t.hi * 100);
-                row.innerHTML = `<span class="venue-toss-format-dot" style="background:${fmtColors[fmt]}"></span><span class="venue-toss-format-key">${fmtLabels[fmt]}</span><span class="venue-toss-label">n=${t.decided}</span><span class="venue-toss-value">${pct}% <span class="ci">[${lo}–${hi}]</span></span>`;
+                const pct  = Math.round(t.pct * 100);
+                const wins = t.battingFirstWins;
+                const n    = t.decided;
+                row.innerHTML = `${leftHtml}
+                  <span class="venue-toss-bar-wrap">
+                    <span class="venue-toss-bar" style="width:${pct}%;background:${fmtColors[fmt]}"></span>
+                    <span class="venue-toss-bar-mid"></span>
+                  </span>
+                  <span class="venue-toss-value">${pct}%</span>
+                  <span class="venue-toss-count">${wins}/${n}</span>`;
               }
               tossList.appendChild(row);
             });
