@@ -1,6 +1,6 @@
 /* Insights feed widget (T-3.7).
  * Floating "Did you know?" panel — auto-shows after the user enters the viz.
- * Close state persists in localStorage; toolbar button reopens it.
+ * Close state persists in localStorage; toolbar button or edge tab reopens it.
  */
 import { DEBUG } from '../debug.js';
 import { computeInsightPool, pickFive } from '../data/insights.js';
@@ -17,6 +17,7 @@ const CATEGORY_COLOR = {
 };
 
 let panel   = null;
+let tabEl   = null;
 let listEl  = null;
 let pool    = [];
 let loading = false;
@@ -28,6 +29,12 @@ function isClosed() {
 }
 function markClosed(v) {
   try { localStorage.setItem(STORAGE_KEY, v ? '1' : '0'); } catch (_) {}
+}
+
+function applyState() {
+  const closed = isClosed();
+  panel.classList.toggle('is-collapsed', closed);
+  if (tabEl) tabEl.style.display = closed ? '' : 'none';
 }
 
 // ── Panel construction ────────────────────────────────────────────────────────
@@ -68,8 +75,9 @@ function buildPanel() {
   closeBtn.title     = 'Close';
   closeBtn.textContent = '✕';
   closeBtn.addEventListener('click', () => {
-    panel.classList.remove('insights-feed--visible');
     markClosed(true);
+    panel.classList.remove('insights-feed--visible');
+    applyState();
   });
 
   actions.appendChild(refreshBtn);
@@ -83,6 +91,22 @@ function buildPanel() {
   panel.appendChild(header);
   panel.appendChild(listEl);
   document.body.appendChild(panel);
+
+  // Build the re-open tab on the right edge
+  tabEl = document.createElement('button');
+  tabEl.id        = 'insightsFeedTab';
+  tabEl.className = 'insights-feed-tab';
+  tabEl.type      = 'button';
+  tabEl.textContent = 'Did you know?';
+  tabEl.setAttribute('aria-label', 'Open insights feed');
+  tabEl.addEventListener('click', () => {
+    markClosed(false);
+    showInsightsFeed();
+    applyState();
+  });
+  document.body.appendChild(tabEl);
+
+  applyState();
 }
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
@@ -119,6 +143,7 @@ export function showInsightsFeed() {
     loadAndShow();
   } else if (pool.length) {
     panel.classList.add('insights-feed--visible');
+    applyState();
   }
 }
 
@@ -130,6 +155,7 @@ async function loadAndShow() {
     if (!pool.length) return;
     renderCards(pickFive(pool));
     panel.classList.add('insights-feed--visible');
+    applyState();
   } catch (e) {
     if (DEBUG) console.warn('insightsFeed: load failed', e);
   } finally {
@@ -147,7 +173,7 @@ export function initInsightsFeed() {
     setTimeout(loadAndShow, SHOW_DELAY);
   }
 
-  // Fire immediately if already past landing, otherwise wait for the class removal
+  // Fire immediately if already past landing, otherwise wait for class removal
   if (!document.body.classList.contains('landing')) {
     tryShow();
   } else {

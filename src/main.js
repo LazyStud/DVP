@@ -12,7 +12,7 @@ import { drawBubbles, updateBubblePositions, updateBubbleLegend } from './layers
 import { drawVenues, updateVenuesPosition }           from './layers/venues.js';
 import { createLegendUI, setupFormatUI }              from './ui/legends.js';
 import { renderLeaderboard, wireLeaderboardEvents } from './ui/leaderboard.js';
-import { updateInstruction }                          from './ui/instructionBox.js';
+import { updateInstruction, initInstructionBox }       from './ui/instructionBox.js';
 import { hideVenueLoading }                           from './ui/toast.js';
 import { initYearBox }                                from './ui/yearSlider.js';
 import { pushHash, readHash }                         from './ui/urlState.js';
@@ -180,7 +180,7 @@ function setMode(newMode) {
     const flowCtrl = document.querySelector('.flow-controls'); if (flowCtrl) flowCtrl.style.display = state.mode === 'globe' ? 'flex' : 'none';
     const bubbleMetricEl = document.querySelector('.bubble-metric'); if (bubbleMetricEl) bubbleMetricEl.style.display = state.mode === 'map' ? 'block' : 'none';
   } catch (_) {}
-  try { updateInstruction(state.mode); } catch (e) { reportError('nonfatal', e); }
+  try { updateInstruction(state.mode); initInstructionBox(); } catch (e) { reportError('nonfatal', e); }
   try { pushHash(); } catch (_) {}
 }
 
@@ -297,8 +297,6 @@ try { initSearch(); } catch (e) { if (DEBUG) console.warn('search init failed', 
 
 // ── Insights feed (T-3.7) ────────────────────────────────────────────────────
 try { initInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed init failed', e); }
-const insightsFeedBtn = document.getElementById('insightsFeedBtn');
-if (insightsFeedBtn) { insightsFeedBtn.addEventListener('click', () => { try { showInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed', e); } }); }
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;

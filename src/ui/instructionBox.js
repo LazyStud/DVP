@@ -1,8 +1,37 @@
-/* Left-side help box — dynamic content per view mode. */
+/* Left-side help box — dynamic content per view mode.
+ * Supports collapse/expand via a left-edge tab, state persisted in localStorage.
+ */
 import { state } from '../state.js';
 
 const instructionBox = document.getElementById('instructionBox');
 const btnMenu        = document.getElementById('menuBtn');
+
+const KEY     = 'gci-instr-open';
+const isOpen  = () => { try { return localStorage.getItem(KEY) !== '0'; } catch (_) { return true; } };
+const setOpen = v  => { try { localStorage.setItem(KEY, v ? '1' : '0'); } catch (_) {} };
+
+function ensureTab() {
+  let t = document.getElementById('instructionsTab');
+  if (t) return t;
+  t = Object.assign(document.createElement('button'), {
+    id: 'instructionsTab',
+    className: 'instructions-tab',
+    type: 'button',
+    textContent: 'How to use',
+  });
+  t.addEventListener('click', () => { setOpen(true); applyState(); });
+  document.body.appendChild(t);
+  return t;
+}
+
+function applyState() {
+  if (!instructionBox) return;
+  const open = isOpen();
+  instructionBox.classList.toggle('is-collapsed', !open);
+  ensureTab().style.display = open ? 'none' : '';
+}
+
+export function initInstructionBox() { applyState(); }
 
 export function updateInstruction(currentMode) {
   try {
@@ -21,26 +50,38 @@ export function updateInstruction(currentMode) {
         </div>
       </div>`;
 
+    let title, body, hint;
     if (currentMode === 'map' || document.body.classList.contains('map-mode')) {
       instructionBox.classList.remove('globe-mode'); instructionBox.classList.add('map-mode');
-      instructionBox.innerHTML = `
-        <div class="ins-title">Map (2D) — country bubbles</div>
-        <div class="ins-body">Bubble size represents matches hosted. Use the year slider to filter years. Click a bubble or country to focus it and open venue details. Flow arcs are hidden in this view.</div>
-        ${leaderboardHtml}
-        <div class="ins-hint">Tip: switch to Globe to see match spikes and directional flows.</div>`;
+      title = 'Map (2D) — country bubbles';
+      body  = 'Bubble size represents matches hosted. Use the year slider to filter years. Click a bubble or country to focus it and open venue details. Flow arcs are hidden in this view.';
+      hint  = 'Tip: switch to Globe to see match spikes and directional flows.';
     } else {
       instructionBox.classList.remove('map-mode'); instructionBox.classList.add('globe-mode');
-      instructionBox.innerHTML = `
-        <div class="ins-title">Globe (3D) — rotatable view</div>
-        <div class="ins-body">Drag to rotate the globe. Spikes show matches hosted (height). Enable flows to view origin → host arcs. Click a country to list venues and open venue panels.</div>
-        ${leaderboardHtml}
-        <div class="ins-hint">Tip: double-click to reset rotation/zoom.</div>`;
+      title = 'Globe (3D) — rotatable view';
+      body  = 'Drag to rotate the globe. Spikes show matches hosted (height). Enable flows to view origin → host arcs. Click a country to list venues and open venue panels.';
+      hint  = 'Tip: double-click to reset rotation/zoom.';
     }
+
+    instructionBox.innerHTML = `
+      <div class="instructions__header">
+        <div class="ins-title">${title}</div>
+        <button class="instructions__close" aria-label="Close instructions" type="button">&#215;</button>
+      </div>
+      <div class="instructions__body">
+        <div class="ins-body">${body}</div>
+        ${leaderboardHtml}
+        <div class="ins-hint">${hint}</div>
+      </div>`;
 
     const insBtn = instructionBox.querySelector('#insLeaderboardBtn');
     if (insBtn) {
       insBtn.addEventListener('click',   ev => { ev.stopPropagation(); try { btnMenu?.click(); } catch (e) { reportError('nonfatal', e); } });
       insBtn.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); try { btnMenu?.click(); } catch (e) { reportError('nonfatal', e); } } });
     }
+
+    instructionBox.querySelector('.instructions__close')
+      .addEventListener('click', () => { setOpen(false); applyState(); });
+    applyState();
   } catch (e) { reportError('nonfatal', e); }
 }

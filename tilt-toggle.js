@@ -25,8 +25,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Update the concise label for the toggle. isMap === true => 2D atlas active.
   function setLabelForMode(isMap){
     if (!textEl) return;
-    if (isMap) textEl.textContent = '2D atlas — click to switch to 3D globe';
-    else       textEl.textContent = '3D globe — click to switch to 2D atlas';
+    textEl.textContent = '3D / 2D';
+    container.title = isMap
+      ? '2D atlas active — click to switch to 3D globe'
+      : '3D globe active — click to switch to 2D atlas';
   }
 
   // When the user toggles, emit view-toggle and update label immediately for responsiveness

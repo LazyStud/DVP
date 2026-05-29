@@ -34,6 +34,22 @@ body {
   --choro-low: #e64a19;
   --choro-mid: #f7e082;
   --choro-high:#2e7d32;
+
+  /* ── Surface tokens ──────────────────────────────────────────────────── */
+  --surface-bg:        rgba(15,22,28,0.55);
+  --surface-bg-strong: rgba(15,22,28,0.78);
+  --surface-border:    rgba(255,255,255,0.10);
+  --surface-blur:      14px;
+  --surface-shadow:    0 8px 28px rgba(0,0,0,0.45);
+  --surface-radius:    14px;
+
+  /* ── Z-index token scale ─────────────────────────────────────────────── */
+  --z-chrome:  50;
+  --z-toggle:  60;
+  --z-search:  70;
+  --z-toast:   80;
+  --z-overlay: 100;
+  --z-popup:   150;
 }
 
 /* ===== Light theme token overrides ======================================= */
@@ -53,6 +69,24 @@ body {
   --muted:           #4a6358;
   --accent:          #c96000;
   color-scheme: light;
+
+  --surface-bg:        rgba(255,252,244,0.62);
+  --surface-bg-strong: rgba(255,252,244,0.88);
+  --surface-border:    rgba(0,0,0,0.10);
+  --surface-shadow:    0 8px 28px rgba(0,0,0,0.18);
+}
+
+/* ===== Shared surface class =============================================== */
+.surface {
+  background: var(--surface-bg);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--surface-radius);
+  box-shadow: var(--surface-shadow);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
+}
+@supports not (backdrop-filter: blur(2px)) {
+  .surface { background: var(--surface-bg-strong); }
 }
 
 /* Light mode: lighten the bg-image overlay so the photo shows through warmly */
@@ -470,7 +504,10 @@ body:not(.landing) #globe { position: fixed; inset: 0; width: 100vw; height: 100
 /* Hide chrome while landing */
 body.landing .legend,
 body.landing .year-box,
-body.landing .hamburger,
+body.landing .toolbar,
+body.landing .instructions,
+body.landing .instructions-tab,
+body.landing .insights-feed-tab,
 body.landing #leaderboardOverlay,
 body.landing #backdrop,
 body.landing .search-wrap { display: none !important; }
@@ -529,54 +566,43 @@ body.choro-on .country.has-venues { fill: inherit; }
 }
 .venue-icon:hover { transform: scale(1.12); }
 
-/* ===== Hamburger ========================================================= */
-.hamburger {
-  position: fixed; left: 16px; top: 16px; width: 44px; height: 44px; border-radius: 10px;
-  display: grid; place-items: center; background: transparent; border: none;
-  cursor: pointer; z-index: 7;
-}
-
-/* ===== Theme toggle button =============================================== */
-.theme-toggle-btn {
+/* ===== Toolbar (top-left pill) =========================================== */
+.toolbar {
   position: fixed;
-  left: 68px; /* right of the hamburger (16 + 44 + 8) */
-  top: 16px;
-  width: 40px; height: 40px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.07);
-  color: var(--text);
-  font-size: 18px;
-  cursor: pointer;
-  display: grid; place-items: center;
-  z-index: 1202;
-  transition: background 140ms, border-color 140ms;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  z-index: calc(var(--z-search) + 5); /* must sit above search-wrap so narrow viewports don't block rightmost buttons */
 }
-.theme-toggle-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
-[data-theme="light"] .theme-toggle-btn { border-color: rgba(0,0,0,0.12); background: rgba(0,0,0,0.05); }
-[data-theme="light"] .theme-toggle-btn:hover { background: rgba(0,0,0,0.10); border-color: rgba(0,0,0,0.20); }
-body.landing .theme-toggle-btn { display: none !important; }
+.toolbar-tl { left: 16px; top: 14px; }
+.toolbar-btn {
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 140ms;
+  flex-shrink: 0;
+}
+.toolbar-btn:hover         { background: rgba(255,255,255,0.12); }
+[data-theme="light"] .toolbar-btn:hover { background: rgba(0,0,0,0.08); }
+.toolbar-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toolbar-btn svg           { width: 18px; height: 18px; display: block; }
 
-/* ===== Globe / map PNG export button ==================================== */
-.export-globe-btn {
-  position: fixed;
-  left: 120px; /* right of theme toggle (68 + 40 + 12) */
-  top: 16px;
-  width: 40px; height: 40px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.07);
-  color: var(--text);
-  cursor: pointer;
-  z-index: 1202;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 140ms, border-color 140ms;
-}
-.export-globe-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
-[data-theme="light"] .export-globe-btn { border-color: rgba(0,0,0,0.12); background: rgba(0,0,0,0.05); }
-[data-theme="light"] .export-globe-btn:hover { background: rgba(0,0,0,0.10); border-color: rgba(0,0,0,0.20); }
-body.landing .export-globe-btn { display: none !important; }
+/* Sun/moon icon swap based on theme */
+#themeToggleBtn .icon-moon { display: none; }
+[data-theme="light"] #themeToggleBtn .icon-sun  { display: none; }
+[data-theme="light"] #themeToggleBtn .icon-moon { display: block; }
+
+/* #menuBtn.open: visual active state when leaderboard is open */
+#menuBtn.open { background: rgba(255,255,255,0.15) !important; }
+
+body.landing .toolbar { display: none !important; }
 
 /* ===== Instruction box (left side of globe/map) ======================== */
 .instructions{
@@ -584,27 +610,77 @@ body.landing .export-globe-btn { display: none !important; }
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  width: min(320px, 28vw);
-  max-width: 360px;
+  width: min(300px, 26vw);
+  max-width: 340px;
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
-  padding: 12px 14px;
   color: var(--text);
-  z-index: 1202;
+  z-index: var(--z-chrome);
   box-shadow: 0 18px 40px rgba(0,0,0,0.35);
   font-size: 0.95rem;
   line-height: 1.25;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
 }
-.instructions .ins-title{ font-weight:700; margin-bottom:6px; color:var(--text); font-size:1rem }
-.instructions .ins-body{ color:var(--muted); font-size:0.9rem }
-.instructions .ins-hint{ margin-top:8px; font-size:0.86rem; color: #cfe8f5 }
+.instructions.is-collapsed { display: none; }
 
-/* Hide instructions on landing to avoid overlap with the hero panel */
-body.landing .instructions{ display: none !important; }
+.instructions__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--panel-border);
+  position: sticky;
+  top: 0;
+  background: var(--panel-bg);
+  border-radius: 12px 12px 0 0;
+  z-index: 1;
+}
+.instructions__close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 120ms, background 120ms;
+}
+.instructions__close:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+.instructions__body { padding: 10px 12px 12px; }
+
+.instructions .ins-title{ font-weight:700; margin:0; color:var(--text); font-size:0.95rem }
+.instructions .ins-body{ color:var(--muted); font-size:0.88rem }
+.instructions .ins-hint{ margin-top:8px; font-size:0.84rem; color: #cfe8f5 }
+
+/* Re-open tab on left edge */
+.instructions-tab {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 14px 6px;
+  writing-mode: vertical-lr;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  z-index: var(--z-chrome);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.25);
+  transition: color 120ms, background 120ms;
+}
+.instructions-tab:hover { color: var(--text); background: var(--panel-bg); }
 
 @media (max-width:640px){
-  .instructions{ left: 8px; width: calc(44vw); max-width: none; padding:10px; font-size:0.92rem }
+  .instructions{ left: 8px; width: calc(44vw); max-width: none; font-size:0.92rem }
 }
 
 /* Inline leaderboard icon / button inside instruction box */
@@ -635,14 +711,6 @@ body.landing .instructions{ display: none !important; }
 .hamburger-icon span{ display:block; width:22px; height:2px; background:var(--text); border-radius:2px }
 .hamburger-icon span + span{ margin-top:5px }
 .hamburger-icon:focus{ outline:none; box-shadow:0 0 0 4px rgba(255,138,0,0.08) }
-.hamburger span {
-  display: block; width: 22px; height: 2px; background: var(--text);
-  transition: transform 200ms ease, opacity 200ms ease;
-}
-.hamburger span + span { margin-top: 5px; }
-.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.hamburger.open span:nth-child(2) { opacity: 0; }
-.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 /* ===== Leaderboard icon (bar chart) =================================== */
 .leaderboard-icon{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px; background:#134e4a; border:1px solid rgba(255,255,255,0.18); padding:6px; color:var(--text); }
@@ -655,7 +723,7 @@ body.landing .instructions{ display: none !important; }
   position: fixed;
   right: 12px;
   top: 52px; /* placed below the toggle (toggle sits ~12px from top) */
-  z-index: 1202;
+  z-index: var(--z-chrome);
   width: 220px;
   max-width: 220px;
   background: var(--panel-bg);
@@ -860,15 +928,15 @@ body:not(.map-mode) .legend .bubble-legend { display: none !important; }
   background: rgba(0,0,0,0.55); color: var(--text);
   border: 1px solid rgba(255,255,255,0.15);
   opacity: 0; pointer-events: none; transition: opacity 160ms ease;
-  z-index: 9;
+  z-index: var(--z-toast);
 }
 .toast.show { opacity: 1; }
 
 /* New toggle styles (user-provided). Scoped to .toggle to avoid global side-effects */
-.toggle{ --sz: calc(10vmin * 0.15); --on: #99dc39; --of: #F44336; --lg: var(--of); --sp: 1s; position: fixed; right: 12px; top: 12px; z-index: 1201; }
+.toggle{ --sz: calc(10vmin * 0.15); --on: #99dc39; --of: #F44336; --lg: var(--of); --sp: 1s; position: fixed; right: 12px; top: 12px; z-index: var(--z-toggle); }
 
 /* Hide toggle on landing/homepage */
-.toggle-wrap { position: fixed; right: 12px; top: 12px; z-index: 1201; display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 24px); }
+.toggle-wrap { position: fixed; right: 12px; top: 12px; z-index: var(--z-toggle); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 24px); }
 
 /* Hide toggle on landing/homepage */
 body.landing .toggle-wrap { display: none !important; }
@@ -881,7 +949,7 @@ body.landing .toggle-wrap { display: none !important; }
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1200; /* sit underneath the label so label can appear above if needed */
+  z-index: 1; /* internal stacking within .toggle-wrap */
 }
 
 .toggle-text {
@@ -889,8 +957,8 @@ body.landing .toggle-wrap { display: none !important; }
   font-size: 11px;
   line-height: 1.15;
   margin-right: 12px;
-  z-index: 1300;
-  max-width: 220px;
+  z-index: var(--z-toggle);
+  max-width: 80px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -926,7 +994,7 @@ label[for=btn]:before {
   left: calc(calc( var(--sz) / 10) + calc(var(--sz) / -30));
   background: linear-gradient(0deg, #212121, #fff0 35% 65%, #474747), radial-gradient( #fff0 0 calc(var(--sz) / 3), #393939 calc(calc(var(--sz) / 3) + 1px) calc(var(--sz) / 1), #474747);
   border-radius: var(--sz);
-  z-index: 1; overflow: hidden;
+  z-index: 2; overflow: hidden;
   box-shadow: 0 0 calc(var(--sz) / 3) calc(var(--sz) / -8) var(--lg), 0 0 calc(var(--sz) / 5) calc(var(--sz) / -15) var(--lg) inset, calc(var(--sz) / -50) calc(var(--sz) / 50) calc(var(--sz) / 30) 0 #fff2 inset, 0 0 calc(var(--sz) / 10) calc(var(--sz) / 50) #000c, 0 calc(var(--sz) / 4) calc(var(--sz) / 5) 0 #000d;
   animation: grow calc(var(--sp) / 3) ease 0s 2 alternate;
 }
@@ -999,22 +1067,12 @@ body::before{
     linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.42)),
     linear-gradient(180deg, rgba(4,24,36,0.55) 0%, rgba(7,18,26,0.55) 60%, rgba(2,16,23,0.55) 100%);
 }
-#globe,
-.year-box,
-.hamburger {
-  z-index: 1;
-}
+#globe { z-index: 1; }
 
-/* Ensure proper stacking: backdrop sits under the overlay so clicks inside the overlay
-  are not intercepted by the backdrop. Place the year slider above the backdrop so
-  it remains interactive, but keep the overlay above the slider. */
-/* backdrop: below most UI */
-#backdrop { z-index: 1200; }
-/* legend and overlay keep their high values; overlay must remain above slider */
-#leaderboardOverlay { z-index: 1203; }
-
-/* Keep the year slider above the backdrop but below overlay/legend */
-.year-box { z-index: 1201; }
+/* Stacking: backdrop dims behind overlay; overlay and popups sit on top of all chrome. */
+#backdrop          { z-index: 90; }           /* above chrome (50), below overlay (100) */
+#leaderboardOverlay{ z-index: var(--z-overlay); }
+.year-box          { z-index: var(--z-chrome); }
 
 /* Ensure the SVG/globe never paints an opaque fill */
 #globe, #globe svg { background: transparent; }
@@ -1029,7 +1087,7 @@ body { background: transparent; }
 /* ===== Venue window (popup) ============================================ */
 #venue-window{
   position: fixed; /* ensure placeAtDatum left/top work */
-  z-index: 1310;
+  z-index: var(--z-popup);
   display: none;
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
@@ -1341,7 +1399,7 @@ body { background: transparent; }
 /* ===== Player window (drill-down modal) — T-3.1 ========================= */
 #player-window {
   position: fixed;
-  z-index: 1320;
+  z-index: var(--z-popup);
   display: none;
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
@@ -1387,7 +1445,7 @@ body { background: transparent; }
 
 
 /* ===== Head-to-head comparison (T-3.2) ================================= */
-#h2h-window{position:fixed;z-index:1325;display:none;background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--text);border-radius:12px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);width:460px;max-width:92vw;max-height:calc(100vh - 40px);overflow:auto;font-size:14px;backdrop-filter:blur(16px);opacity:0;transform:scale(0.96);transition:opacity 180ms ease,transform 180ms ease;}
+#h2h-window{position:fixed;z-index:var(--z-popup);display:none;background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--text);border-radius:12px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);width:460px;max-width:92vw;max-height:calc(100vh - 40px);overflow:auto;font-size:14px;backdrop-filter:blur(16px);opacity:0;transform:scale(0.96);transition:opacity 180ms ease,transform 180ms ease;}
 #h2h-window.open{opacity:1;transform:scale(1)}
 #h2h-window .h2h-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.04)}
 #h2h-window .h2h-title{margin:0;font-size:1.05rem;color:var(--text)}
@@ -1452,7 +1510,7 @@ body { background: transparent; }
 .venue-typology-chip[data-key="balanced"] { color:#94a3b8; background:rgba(148,163,184,.12); }
 
 /* ===== Toss insights overlay (T-3.3) ======================================== */
-#insights-window{position:fixed;z-index:1325;display:none;background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--text);border-radius:12px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);width:520px;max-width:94vw;max-height:calc(100vh - 40px);overflow:auto;font-size:14px;backdrop-filter:blur(16px);opacity:0;transform:scale(0.96);transition:opacity 180ms ease,transform 180ms ease;}
+#insights-window{position:fixed;z-index:var(--z-popup);display:none;background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--text);border-radius:12px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);width:520px;max-width:94vw;max-height:calc(100vh - 40px);overflow:auto;font-size:14px;backdrop-filter:blur(16px);opacity:0;transform:scale(0.96);transition:opacity 180ms ease,transform 180ms ease;}
 #insights-window.open{opacity:1;transform:scale(1)}
 #insights-window .insights-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.04)}
 #insights-window .insights-title{margin:0;font-size:1.05rem;color:var(--text)}
@@ -1492,7 +1550,7 @@ body { background: transparent; }
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1210;
+  z-index: var(--z-search);
   display: flex;
   align-items: center;
   gap: 0;
@@ -1554,7 +1612,7 @@ body { background: transparent; }
   padding: 4px 0;
   max-height: 340px;
   overflow-y: auto;
-  z-index: 1211;
+  z-index: var(--z-search);
   box-shadow: 0 8px 28px rgba(0,0,0,0.45);
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.12) transparent;
@@ -1628,7 +1686,7 @@ body { background: transparent; }
   position: fixed;
   bottom: 148px;   /* clears the year slider (~110px) + gutter */
   right: 14px;
-  z-index: 1205;
+  z-index: var(--z-chrome);
   width: 264px;
   max-width: calc(100vw - 28px);
   background: var(--panel-bg);
@@ -1732,3 +1790,26 @@ body.landing #insightsFeed { display: none; }
     width: auto;
   }
 }
+
+/* Re-open tab on right edge (mirrors .instructions-tab on the left) */
+.insights-feed-tab {
+  position: fixed;
+  right: 0;
+  bottom: 200px;
+  padding: 14px 6px;
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  cursor: pointer;
+  z-index: var(--z-chrome);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: -2px 0 12px rgba(0,0,0,0.25);
+  transition: color 120ms, background 120ms;
+}
+.insights-feed-tab:hover { color: var(--text); }

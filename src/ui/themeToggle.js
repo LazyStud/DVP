@@ -5,7 +5,6 @@ function applyTheme(theme) {
   const btn = document.getElementById('themeToggleBtn');
   if (!btn) return;
   const isLight = theme === 'light';
-  btn.textContent  = isLight ? '☾' : '☀';
   btn.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
   btn.title        = isLight ? 'Switch to dark theme' : 'Switch to light theme';
 }
