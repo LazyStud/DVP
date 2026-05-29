@@ -1,3 +1,5 @@
+import { matchView } from '../data/queries.js';
+
 function marginText(resultType, margin) {
   const n = parseInt(margin, 10);
   if (!n && resultType !== 'innings') return null;
@@ -71,8 +73,8 @@ export function initTodayInCricket() {
     rows = DB.queryAll(
       `SELECT date, format, team1, team2, city, venue_name,
               winner, result_type, win_margin, player_of_match
-       FROM matches
-       WHERE strftime('%m-%d', date) = ?
+       FROM ${matchView()} AS m
+       WHERE strftime('%m-%d', m.date) = ?
          AND winner IS NOT NULL AND winner != ''
        ORDER BY
          CASE

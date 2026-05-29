@@ -51,7 +51,7 @@ function queryDecadeData() {
         const dec = DECADES.find(d => yr >= d.min && yr <= d.max);
         if (dec) counts[dec.label][fmt] = (counts[dec.label][fmt] || 0) + cnt;
       }
-    } catch (_) {}
+    } catch (e) { reportError('nonfatal', e); }
   }
   return counts;
 }

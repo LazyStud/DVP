@@ -19,6 +19,6 @@ export function initThemeToggle() {
     const current = document.documentElement.getAttribute('data-theme') || 'dark';
     const next    = current === 'dark' ? 'light' : 'dark';
     applyTheme(next);
-    try { localStorage.setItem(STORAGE_KEY, next); } catch (_) {}
+    try { localStorage.setItem(STORAGE_KEY, next); } catch (_) { /* empty */ }
   });
 }

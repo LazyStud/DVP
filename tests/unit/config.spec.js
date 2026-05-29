@@ -7,7 +7,6 @@ import {
   ICON_PATH,
   SPIN_DEG_PER_SEC,
   ICON_BASE,
-  SPIKE_COLOR,
   FLOW_MAP_COLOR,
 } from '../../src/config.js';
 
@@ -70,10 +69,6 @@ describe('config constants', () => {
   it('ICON_BASE is a positive number', () => {
     expect(typeof ICON_BASE).toBe('number');
     expect(ICON_BASE).toBeGreaterThan(0);
-  });
-
-  it('SPIKE_COLOR is a CSS hex colour', () => {
-    expect(SPIKE_COLOR).toMatch(/^#[0-9a-fA-F]{3,6}$/);
   });
 
   it('FLOW_MAP_COLOR is a CSS hex colour', () => {

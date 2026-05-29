@@ -141,7 +141,7 @@ export async function showVenueTooltip(ev, d) {
          FROM venue_stats WHERE (${_likeExprs})`, _likes
       ) || [];
       if (rows[0]) agg = rows[0];
-    } catch (_) {}
+    } catch (e) { reportError('nonfatal', e); }
 
     const parts = [
       `<div style="font-size:0.92rem;margin-bottom:6px">Total matches (all years): <strong style="color:#fff">${agg.matches || 0}</strong></div>`,

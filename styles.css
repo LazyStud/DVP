@@ -43,6 +43,8 @@ body {
   --surface-shadow:    0 8px 28px rgba(0,0,0,0.45);
   --surface-radius:    14px;
 
+  --spike-color: #ff0000;
+
   /* ── Z-index token scale ─────────────────────────────────────────────── */
   --z-chrome:  50;
   --z-toggle:  60;
@@ -60,6 +62,7 @@ body {
   --land-stroke:     #9a6820;
   --graticule:       #8cc5bc;
   --boundary-stroke: rgba(100,70,20,0.35);
+  --spike-color:     #c62828;
   --hover-fill:      #fff3e0;
   --hover-stroke:    #c96000;
   --hover-shadow:    rgba(201,96,0,0.22);
@@ -1174,8 +1177,6 @@ body { background: transparent; }
 
 /* ── 640px: mobile ──────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* Hide verbose bullet list — too much detail for small screens */
-  .hero-points { display: none; }
   .hero-right { display: none; }
   .hero { padding: 12px; }
 

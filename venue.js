@@ -1,4 +1,6 @@
 /* VenueWindow: lightweight anchored popup with radar placeholder */
+if (typeof reportError !== 'function') { window.reportError = function () {}; }
+if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
 (function () {
   let svgRef, gRootRef, getProjection, getMode;
   let panel, titleEl, badgeEl, typologyChipEl, contentEl;

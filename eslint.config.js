@@ -7,21 +7,46 @@ export default [
 
   js.configs.recommended,
 
-  // Base config for all source JS files
+  // IIFE scripts loaded as plain <script> tags (db.js, venue.js, formats.js, tilt-toggle.js)
   {
-    files: ['*.js', 'src/**/*.js'],
+    files: ['*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: {
         ...globals.browser,
-        // project globals declared in one file, consumed by others
         DEBUG:       'readonly',
         reportError: 'readonly',
         Formats:     'readonly',
         DB:          'readonly',
         VenueWindow: 'readonly',
-        // CDN libraries loaded via <script> tags
+        d3:          'readonly',
+        topojson:    'readonly',
+        initSqlJs:   'readonly',
+      },
+    },
+    rules: {
+      'prefer-const':              'warn',
+      'no-unused-vars':            ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-async-promise-executor': 'error',
+      'no-undef':                  'error',
+      'no-prototype-builtins':     'error',
+    },
+  },
+
+  // ES modules under src/ — support import/export and top-level await
+  {
+    files: ['src/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+        DEBUG:       'readonly',
+        reportError: 'readonly',
+        Formats:     'readonly',
+        DB:          'readonly',
+        VenueWindow: 'readonly',
         d3:          'readonly',
         topojson:    'readonly',
         initSqlJs:   'readonly',

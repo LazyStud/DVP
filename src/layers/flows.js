@@ -52,7 +52,7 @@ export function drawFlowArcs() {
         .attr('d', state.path({ type: 'LineString', coordinates: coords }))
         .attr('stroke-width', Math.max(0.6, state.flowWidthScale(d.matches)))
         .attr('stroke', col);
-    } catch (_) { d3.select(this).attr('d', null); }
+    } catch (e) { reportError('nonfatal', e); d3.select(this).attr('d', null); }
   });
 
   updateFlowPositions();
@@ -60,7 +60,7 @@ export function drawFlowArcs() {
 
 export function updateFlowPositions() {
   if (!state.flowVisible) {
-    try { state.gFlowArcs.selectAll('path.flow').style('display', 'none'); } catch (_) {}
+    try { state.gFlowArcs.selectAll('path.flow').style('display', 'none'); } catch (_) { /* empty */ }
     return;
   }
   if (state.mode === 'map') { state.gFlowArcs.selectAll('path.flow').style('display', 'none'); return; }
@@ -79,7 +79,7 @@ export function updateFlowPositions() {
         .attr('d', state.path({ type: 'LineString', coordinates: coords }))
         .attr('stroke-width', Math.max(0.6, state.flowWidthScale(d.matches)) * (state.mode === 'globe' ? state.globeZoomK : 1))
         .attr('stroke', col);
-    } catch (_) { d3.select(this).attr('d', null); }
+    } catch (e) { reportError('nonfatal', e); d3.select(this).attr('d', null); }
   });
 }
 

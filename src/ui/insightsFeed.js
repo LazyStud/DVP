@@ -28,7 +28,7 @@ function isClosed() {
   try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch (_) { return false; }
 }
 function markClosed(v) {
-  try { localStorage.setItem(STORAGE_KEY, v ? '1' : '0'); } catch (_) {}
+  try { localStorage.setItem(STORAGE_KEY, v ? '1' : '0'); } catch (_) { /* empty */ }
 }
 
 function applyState() {

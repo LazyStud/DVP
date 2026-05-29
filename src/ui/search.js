@@ -168,7 +168,7 @@ async function selectResult({ item, type }) {
     } catch (e) {
       if (DEBUG) console.warn('search focus failed', e);
     }
-    setTimeout(() => { try { VenueWindow.open(item); } catch (_) {} }, 120);
+    setTimeout(() => { try { VenueWindow.open(item); } catch (e) { reportError('nonfatal', e); } }, 120);
   } else if (type === 'player') {
     openPlayer(item.name, item.team, item.kind);
   } else if (type === 'country') {

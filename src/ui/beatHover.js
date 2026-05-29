@@ -44,7 +44,7 @@ export function initBeatHover() {
       if (cfg.format) {
         state.selectedFormat = cfg.format;
         window.selectedFormat = cfg.format;
-        try { applyChoropleth(); } catch (_) {}
+        try { applyChoropleth(); } catch (e) { reportError('nonfatal', e); }
       }
       if (cfg.globeClass) globe?.classList.add(cfg.globeClass);
       if (label) { label.textContent = cfg.label; label.classList.add('visible'); }

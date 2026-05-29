@@ -172,16 +172,16 @@ function setMode(newMode) {
   }
   updateToggleUI();
   document.body.classList.toggle('map-mode', state.mode === 'map');
-  try { if (state.spikeLegendSection) state.spikeLegendSection.style.display = state.mode === 'map' ? 'none' : 'block'; } catch (_) {}
+  try { if (state.spikeLegendSection) state.spikeLegendSection.style.display = state.mode === 'map' ? 'none' : 'block'; } catch (_) { /* empty */ }
   state.spikeScale.range([0, state.mode === 'globe' ? 56 : 40]);
   updateSpikesPosition();
   try {
     if (state.bubbleLegendSection) state.bubbleLegendSection.style.display = state.mode === 'map' ? 'block' : 'none';
     const flowCtrl = document.querySelector('.flow-controls'); if (flowCtrl) flowCtrl.style.display = state.mode === 'globe' ? 'flex' : 'none';
     const bubbleMetricEl = document.querySelector('.bubble-metric'); if (bubbleMetricEl) bubbleMetricEl.style.display = state.mode === 'map' ? 'block' : 'none';
-  } catch (_) {}
+  } catch (_) { /* empty */ }
   try { updateInstruction(state.mode); initInstructionBox(); } catch (e) { reportError('nonfatal', e); }
-  try { pushHash(); } catch (_) {}
+  try { pushHash(); } catch (_) { /* empty */ }
 }
 
 window.addEventListener('view-toggle', ev => setMode(ev?.detail?.map ? 'map' : 'globe'));
@@ -214,7 +214,7 @@ state.svg.on('dblclick', () => {
     state.svg.transition().duration(400).call(zoomMap.transform, d3.zoomIdentity).on('end', () => gRoot.attr('transform', null));
     state.mapZoomK = 1; state.countryFocused = false;
   }
-  try { pushHash({ country: '' }); } catch (_) {}
+  try { pushHash({ country: '' }); } catch (_) { /* empty */ }
 });
 
 // ── Orchestrated recompute ────────────────────────────────────────────────────
@@ -301,20 +301,20 @@ try { initInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed in
 // Debounced year-range handler
 let _yearRangeDebounce = null;
 const YEAR_DEBOUNCE_MS = 300;
-window.addEventListener('format:change', () => { try { pushHash(); } catch (_) {} });
+window.addEventListener('format:change', () => { try { pushHash(); } catch (_) { /* empty */ } });
 
 window.addEventListener('yearrange:change', ev => {
   const { min, max } = ev.detail || {};
   if (DEBUG) console.info('[SLIDER] requested range:', min, max);
   state.yearRange = { min, max };
-  try { const ybv = document.getElementById('yearBoxValue'); if (ybv) ybv.textContent = `Years ${min}–${max}`; } catch (_) {}
-  try { pushHash(); } catch (_) {}
+  try { const ybv = document.getElementById('yearBoxValue'); if (ybv) ybv.textContent = `Years ${min}–${max}`; } catch (_) { /* empty */ }
+  try { pushHash(); } catch (_) { /* empty */ }
 
   if (_yearRangeDebounce) clearTimeout(_yearRangeDebounce);
   _yearRangeDebounce = setTimeout(async () => {
     _yearRangeDebounce = null;
     try {
-      try { const t = document.getElementById('loadingToast'); if (t) { t.textContent = 'Updating visuals…'; t.classList.add('show'); } } catch (_) {}
+      try { const t = document.getElementById('loadingToast'); if (t) { t.textContent = 'Updating visuals…'; t.classList.add('show'); } } catch (_) { /* empty */ }
       await recomputeAndDraw(min, max);
       try {
         const overlay = document.getElementById('leaderboardOverlay');
@@ -325,7 +325,7 @@ window.addEventListener('yearrange:change', ev => {
       } catch (e) { if (DEBUG) console.warn('year-range leaderboard refresh failed', e); }
     } catch (e) { if (DEBUG) console.warn('yearrange change handler failed', e); }
     finally {
-      try { const t = document.getElementById('loadingToast'); if (t) t.classList.remove('show'); } catch (_) {}
+      try { const t = document.getElementById('loadingToast'); if (t) t.classList.remove('show'); } catch (_) { /* empty */ }
     }
   }, YEAR_DEBOUNCE_MS);
 });
@@ -340,10 +340,10 @@ try { initTodayInCricket(); } catch (e) { if (DEBUG) console.warn('todayInCricke
 try {
   const bsel = document.getElementById('bubbleMetricSelect');
   if (bsel) {
-    try { bsel.value = state.bubbleMetric; } catch (_) {}
+    try { bsel.value = state.bubbleMetric; } catch (_) { /* empty */ }
     bsel.addEventListener('change', ev => {
       state.bubbleMetric = ev.target.value || 'matches';
-      try { localStorage.setItem('bubbleMetric', state.bubbleMetric); } catch (_) {}
+      try { localStorage.setItem('bubbleMetric', state.bubbleMetric); } catch (_) { /* empty */ }
       try { updateBubbleLegend(); } catch (e) { reportError('nonfatal', e); }
     });
   }
@@ -373,7 +373,7 @@ try {
       document.querySelectorAll('#flowCountryList').forEach(n => n.style.display = 'none');
       fCountryList.style.display = show ? 'block' : 'none';
     });
-    document.addEventListener('click', () => { try { fCountryList.style.display = 'none'; } catch (_) {} });
+    document.addEventListener('click', () => { try { fCountryList.style.display = 'none'; } catch (_) { /* empty */ } });
   }
   if (fSelectAll) {
     fSelectAll.addEventListener('change', () => {
@@ -383,7 +383,7 @@ try {
     });
   }
   try { renderFlowFilterUI(); } catch (e) { reportError('nonfatal', e); }
-  try { const fc = document.querySelector('.flow-controls'); if (fc) fc.style.display = state.mode === 'globe' ? 'flex' : 'none'; } catch (_) {}
+  try { const fc = document.querySelector('.flow-controls'); if (fc) fc.style.display = state.mode === 'globe' ? 'flex' : 'none'; } catch (_) { /* empty */ }
 } catch (e) { reportError('nonfatal', e); }
 
 // Landing → explore (transform-based: center moves right→middle while globe grows)
@@ -452,7 +452,7 @@ function triggerExplore() {
   function finish() {
     globe.style.cssText = '';
     document.body.classList.remove('landing', 'landing-exit');
-    try { applyChoropleth(); } catch (_) {}
+    try { applyChoropleth(); } catch (e) { reportError('nonfatal', e); }
     resize();
     startSpin();
   }

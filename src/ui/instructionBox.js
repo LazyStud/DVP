@@ -8,7 +8,7 @@ const btnMenu        = document.getElementById('menuBtn');
 
 const KEY     = 'gci-instr-open';
 const isOpen  = () => { try { return localStorage.getItem(KEY) !== '0'; } catch (_) { return true; } };
-const setOpen = v  => { try { localStorage.setItem(KEY, v ? '1' : '0'); } catch (_) {} };
+const setOpen = v  => { try { localStorage.setItem(KEY, v ? '1' : '0'); } catch (_) { /* empty */ } };
 
 function ensureTab() {
   let t = document.getElementById('instructionsTab');

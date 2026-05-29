@@ -11,11 +11,13 @@ function reportError(scope, err) { if (DEBUG) console.warn('[' + scope + ']', er
 const IDB_NAME  = "cricket-sqlite-cache";
 const IDB_STORE = "files";
 
+let _idb = null;
 function idbOpen() {
+  if (_idb) return Promise.resolve(_idb);
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => { _idb = req.result; resolve(_idb); };
     req.onerror = () => reject(req.error);
   });
 }

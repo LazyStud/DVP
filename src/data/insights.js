@@ -89,6 +89,7 @@ function busiestVenues() {
 
 function topScorers() {
   const out = [];
+  if (typeof Formats === 'undefined') return out;
   try {
     for (const fmt of ['test', 'odi', 't20']) {
       const patterns = Formats.formatLikePatterns(fmt);
@@ -123,6 +124,7 @@ function topScorers() {
 
 function topWicketTakers() {
   const out = [];
+  if (typeof Formats === 'undefined') return out;
   try {
     for (const fmt of ['test', 'odi', 't20']) {
       const patterns = Formats.formatLikePatterns(fmt);

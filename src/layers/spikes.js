@@ -1,13 +1,14 @@
 /* Spike markers (globe-only) + spike legend SVG. */
 import { state }            from '../state.js';
 import { canonicalMapName } from '../data/names.js';
-import { SPIKE_COLOR }      from '../config.js';
+
+const spikeColor = () => getComputedStyle(document.documentElement).getPropertyValue('--spike-color').trim();
 
 // ── Draw / update ────────────────────────────────────────────────────────────
 
 export function drawSpikes() {
   if (state.mode === 'map') {
-    try { state.gSpikes.selectAll('*').remove(); } catch (_) {}
+    try { state.gSpikes.selectAll('*').remove(); } catch (e) { reportError('nonfatal', e); }
     return;
   }
   const data = [];
@@ -30,7 +31,7 @@ export function drawSpikes() {
   sel.exit().remove();
   sel.enter().append('line').attr('class', 'spike')
     .merge(sel)
-    .attr('stroke', SPIKE_COLOR)
+    .attr('stroke', spikeColor())
     .attr('stroke-width', 3.5)
     .attr('opacity', 0.95);
 
@@ -63,7 +64,7 @@ export function renderSpikeLegend(maxMatches) {
   const svgL = d3.select(state.spikeLegend);
   svgL.selectAll('*').remove();
   const w = +svgL.attr('width') || 220, h = +svgL.attr('height') || 72;
-  try { svgL.attr('role', 'img').attr('aria-label', 'Spike legend — height = matches hosted'); } catch (_) {}
+  try { svgL.attr('role', 'img').attr('aria-label', 'Spike legend — height = matches hosted'); } catch (_) { /* empty */ }
 
   const ticks   = [Math.max(1, Math.round(maxMatches / 4)), Math.max(1, Math.round(maxMatches / 2)), Math.max(1, Math.round(maxMatches))];
   const padding = 10;
@@ -73,13 +74,13 @@ export function renderSpikeLegend(maxMatches) {
 
   svgL.append('line')
     .attr('x1', baseX).attr('y1', baseY).attr('x2', baseX).attr('y2', baseY - maxH)
-    .attr('stroke', SPIKE_COLOR).attr('stroke-width', 3).attr('stroke-linecap', 'round').attr('opacity', 0.95);
+    .attr('stroke', spikeColor()).attr('stroke-width', 3).attr('stroke-linecap', 'round').attr('opacity', 0.95);
 
   ticks.forEach(t => {
     const y = baseY - state.spikeScale(t);
     svgL.append('line')
       .attr('x1', baseX - 8).attr('y1', y).attr('x2', baseX + 8).attr('y2', y)
-      .attr('stroke', SPIKE_COLOR).attr('opacity', 0.9);
+      .attr('stroke', spikeColor()).attr('opacity', 0.9);
     svgL.append('text')
       .attr('x', baseX - 12).attr('y', y + 4)
       .attr('fill', 'var(--muted)').attr('font-size', 11).attr('text-anchor', 'end')
@@ -87,7 +88,7 @@ export function renderSpikeLegend(maxMatches) {
   });
 
   svgL.append('rect').attr('x', padding).attr('y', 6).attr('width', 10).attr('height', 10)
-    .attr('rx', 2).attr('fill', SPIKE_COLOR).attr('stroke', 'rgba(0,0,0,0.12)');
+    .attr('rx', 2).attr('fill', spikeColor()).attr('stroke', 'rgba(0,0,0,0.12)');
   svgL.append('text').attr('x', padding + 16).attr('y', 16)
     .attr('fill', 'var(--muted)').attr('font-size', 12).attr('font-weight', 600)
     .text('Match spikes');

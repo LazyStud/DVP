@@ -38,7 +38,7 @@ export function drawVenues() {
     .attr('width', ICON_BASE).attr('height', ICON_BASE)
     .attr('opacity', 0.95)
     .on('pointerdown', event => {
-      try { event.stopPropagation(); } catch (_) {}
+      try { event.stopPropagation(); } catch (_) { /* empty */ }
       state.stopSpin?.();
     })
     .on('click', (event, d) => {

@@ -52,9 +52,9 @@ export async function loadTypologyContext(DB) {
   try {
     const venueRows = DB.queryAll('SELECT venue, names FROM venues') || [];
     for (const row of venueRows) {
-      const canonical = String(row.venue || '').trim().toLowerCase();
+      const canonical = String(row.venue || '').trim();
       if (!canonical) continue;
-      canonicalMap.set(canonical, canonical);
+      canonicalMap.set(canonical.toLowerCase(), canonical);
       if (row.names) {
         String(row.names).split(';').forEach(n => {
           const name = n.trim().toLowerCase();
@@ -62,7 +62,7 @@ export async function loadTypologyContext(DB) {
         });
       }
     }
-  } catch (_) {}
+  } catch (_) { /* empty */ }
 
   const sql = `
     SELECT LOWER(venue_name) AS v, LOWER(format) AS f,
@@ -74,7 +74,7 @@ export async function loadTypologyContext(DB) {
     WHERE venue_name IS NOT NULL
     GROUP BY v, f
     HAVING m >= 10`;
-  let rawRows = [];
+  let rawRows;
   try { rawRows = DB.queryAll(sql) || []; } catch (_) { rawRows = []; }
 
   // Re-aggregate by canonical name using weighted averages.

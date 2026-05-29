@@ -107,7 +107,7 @@ export function initYearBox(recomputeOnly) {
   const dragLeft = d3.drag()
     .on('start', function () {
       yearBox.classList.add('dragging');
-      try { d3.select(this).raise(); } catch (_) {}
+      try { d3.select(this).raise(); } catch (_) { /* empty */ }
       d3.select(this).classed('active', true);
     })
     .on('drag', event => {
@@ -123,7 +123,7 @@ export function initYearBox(recomputeOnly) {
   const dragRight = d3.drag()
     .on('start', function () {
       yearBox.classList.add('dragging');
-      try { d3.select(this).raise(); } catch (_) {}
+      try { d3.select(this).raise(); } catch (_) { /* empty */ }
       d3.select(this).classed('active', true);
     })
     .on('drag', event => {
