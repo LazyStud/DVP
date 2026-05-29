@@ -5,7 +5,7 @@ import { getAllSearchVenues, getAllSearchPlayers } from '../data/queries.js';
 import { openPlayer }  from './playerWindow.js';
 import { VenueWindow } from '../venue.js';
 import { focusGlobeOn, focusMapOn } from '../layers/focus.js';
-import { handleCountryClick } from '../layers/venues.js';
+import { handleCountryClick, addVenues, drawVenues } from '../layers/venues.js';
 import { canonicalMapName } from '../data/names.js';
 import { DEBUG } from '../debug.js';
 
@@ -169,6 +169,9 @@ async function selectResult({ item, type }) {
     } catch (e) {
       if (DEBUG) console.warn('search focus failed', e);
     }
+    addVenues([item]);
+    drawVenues();
+    state.countryFocused = true;
     setTimeout(() => { try { VenueWindow.open(item); } catch (e) { reportError('nonfatal', e); } }, 120);
   } else if (type === 'player') {
     openPlayer(item.name, item.team, item.kind);

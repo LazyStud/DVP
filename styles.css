@@ -841,58 +841,80 @@ body:not(.map-mode) .legend .bubble-legend { display: none !important; }
 .lb-fmt-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(255,138,0,0.12); }
 
 /* ===== Year Box (slider) ================================================= */
-.year-box{
+.year-box {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  width: min(1100px, calc(100vw - 32px));
-  padding: 16px 18px 22px;
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 16px;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
-  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 7px 20px;
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 7px);
+  background: var(--surface-bg);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
+  border-top: 1px solid var(--surface-border);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+  z-index: var(--z-chrome);
   color: var(--text);
 }
-.year-box .yr-header{ display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px; color: var(--muted); font-weight: 600; font-size: 0.95rem; }
-
-.yr-slider{ position: relative; height: 48px; }
-.yr-track{
-  position: absolute; left: 10px; right: 10px; top: 50%;
-  height: 10px; transform: translateY(-50%);
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 999px;
-  box-shadow: inset 0 2px 10px rgba(0,0,0,0.35);
+@supports not (backdrop-filter: blur(2px)) {
+  .year-box { background: var(--surface-bg-strong); }
 }
-.yr-fill{
-  position: absolute; top: 50%; height: 10px; transform: translateY(-50%);
-  left: 10px; width: 0;
+.yr-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.yr-end {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.yr-sr-label {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+
+.yr-slider { position: relative; height: 36px; flex: 1; }
+.yr-track {
+  position: absolute; left: 8px; right: 8px; top: 50%;
+  height: 4px; transform: translateY(-50%);
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+}
+[data-theme="light"] .yr-track { background: rgba(0,0,0,0.12); }
+.yr-fill {
+  position: absolute; top: 50%; height: 4px; transform: translateY(-50%);
+  left: 8px; width: 0;
   background: linear-gradient(90deg, var(--accent), #2dd4bf);
   border-radius: 999px;
-  box-shadow: 0 2px 14px rgba(36,180,126,0.35);
+  box-shadow: 0 0 8px rgba(36,180,126,0.45);
   transition: left 160ms ease, width 160ms ease;
 }
-.yr-thumb{
+.yr-thumb {
   position: absolute; top: 50%; transform: translate(-50%, -50%);
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 16px; height: 16px; border-radius: 50%;
   background: var(--land);
   border: 2px solid var(--accent);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   pointer-events: auto; cursor: grab;
   transition: left 160ms ease;
-  z-index: 2; /* ensure thumbs sit above fill/track by default */
+  z-index: 2;
 }
 .yr-thumb:active { cursor: grabbing; }
-.yr-bubble{
-  position: absolute; top: -36px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,0.35);
-  color: var(--text); font-size: 12px; font-weight: 700;
-  padding: 4px 8px; border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+.yr-bubble {
+  position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.55);
+  color: var(--text); font-size: 11px; font-weight: 700;
+  padding: 2px 7px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
   white-space: nowrap;
   transition: left 160ms ease;
 }
@@ -900,11 +922,8 @@ body:not(.map-mode) .legend .bubble-legend { display: none !important; }
 .year-box.dragging .yr-fill,
 .year-box.dragging .yr-bubble { transition: none !important; }
 
-/* While dragging, make the active thumb visually above the other thumb as a fallback */
 .year-box.dragging .yr-thumb { z-index: 3; }
-
-/* Active thumb state when being dragged */
-.yr-thumb.active { z-index: 4; transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 8px 18px rgba(0,0,0,0.45); }
+.yr-thumb.active { z-index: 4; transform: translate(-50%, -50%) scale(1.2); box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
 
 /* ===== Playback button =================================================== */
 .play-btn {
@@ -1075,7 +1094,6 @@ body::before{
 /* Stacking: backdrop dims behind overlay; overlay and popups sit on top of all chrome. */
 #backdrop          { z-index: 90; }           /* above chrome (50), below overlay (100) */
 #leaderboardOverlay{ z-index: var(--z-overlay); }
-.year-box          { z-index: var(--z-chrome); }
 
 /* Ensure the SVG/globe never paints an opaque fill */
 #globe, #globe svg { background: transparent; }
@@ -1116,8 +1134,6 @@ body { background: transparent; }
 .hidden { display: none !important; }
 
 /* ===== Year slider: collapse toggle (visible on mobile only) ============= */
-.yr-header-controls { display: flex; gap: 8px; align-items: center; }
-
 .yr-collapse-btn {
   display: none;
   width: 28px; height: 28px;
@@ -1187,27 +1203,14 @@ body { background: transparent; }
     bottom: 16px;
   }
 
-  /* Year slider: edge-to-edge drawer pinned to bottom edge */
-  .year-box {
-    left: 0;
-    width: 100%;
-    transform: none;
-    border-radius: 16px 16px 0 0;
-    bottom: 0;
-    padding: 10px 14px 16px;
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
-  }
-
   /* Larger touch targets for the thumbs */
-  .yr-thumb { width: 32px; height: 32px; }
-  .yr-slider { height: 60px; }
-  .yr-track { height: 12px; }
-  .yr-fill  { height: 12px; }
+  .yr-thumb  { width: 26px; height: 26px; }
+  .yr-slider { height: 48px; }
 
   /* Collapse toggle: show on mobile */
   .yr-collapse-btn { display: flex; }
 
-  /* When collapsed, hide the slider rail but keep the header visible */
+  /* When collapsed, hide the slider rail */
   .year-box.collapsed .yr-slider { display: none; }
 
   /* Narrow the legend slightly to avoid overlap with instruction box */
@@ -1379,6 +1382,75 @@ body { background: transparent; }
 .ins-lb-text { display: flex; flex-direction: column; }
 .ins-lb-title { font-weight: 700; color: var(--text); font-size: 0.98rem; }
 .ins-lb-desc { font-size: 0.86rem; color: var(--muted); }
+
+/* About blurb */
+.ins-about {
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+/* Section divider labels */
+.ins-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 8px 0 4px;
+}
+
+/* Control cheatsheet */
+.ins-ctrl-list { display: flex; flex-direction: column; gap: 2px; }
+.ins-ctrl-row  { display: flex; align-items: baseline; gap: 5px; font-size: 0.83rem; color: var(--muted); }
+.ins-key {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 4px;
+  padding: 0px 5px;
+  flex-shrink: 0;
+}
+[data-theme="light"] .ins-key {
+  background: rgba(0,0,0,0.06);
+  border-color: rgba(0,0,0,0.14);
+}
+
+/* Toolbar guide */
+.ins-tb-guide { display: flex; flex-direction: column; gap: 5px; }
+.ins-tb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 7px;
+}
+.ins-tb-row--btn {
+  cursor: pointer;
+  transition: background 80ms;
+}
+.ins-tb-row--btn:hover,
+.ins-tb-row--btn:focus-visible {
+  background: rgba(255,138,0,0.08);
+  outline: none;
+}
+[data-theme="light"] .ins-tb-row--btn:hover,
+[data-theme="light"] .ins-tb-row--btn:focus-visible {
+  background: rgba(180,90,0,0.07);
+}
+.ins-tb-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.ins-tb-text  { display: flex; flex-direction: column; gap: 0; line-height: 1.15; }
+.ins-tb-name  { font-size: 0.84rem; font-weight: 700; color: var(--text); }
+.ins-tb-desc  { font-size: 0.78rem; color: var(--muted); }
 
 /* Radar polygon styles */
 .radar-poly { transition: opacity 160ms ease, transform 180ms ease; }
@@ -1556,23 +1628,25 @@ body { background: transparent; }
   align-items: center;
   gap: 0;
   width: 260px;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.14);
+  background: var(--surface-bg);
+  border: 1px solid var(--surface-border);
   border-radius: 10px;
   padding: 0 10px;
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
+  box-shadow: var(--surface-shadow);
   transition: border-color 140ms, background 140ms;
 }
-.search-wrap:focus-within {
-  background: rgba(255,255,255,0.11);
-  border-color: rgba(255,138,0,0.45);
+@supports not (backdrop-filter: blur(2px)) {
+  .search-wrap { background: var(--surface-bg-strong); }
 }
-[data-theme="light"] .search-wrap {
-  background: rgba(0,0,0,0.05);
-  border-color: rgba(0,0,0,0.12);
+.search-wrap:focus-within {
+  background: var(--surface-bg-strong);
+  border-color: rgba(255,138,0,0.55);
 }
 [data-theme="light"] .search-wrap:focus-within {
-  background: rgba(255,255,255,0.85);
-  border-color: rgba(180,90,0,0.45);
+  background: var(--surface-bg-strong);
+  border-color: rgba(180,90,0,0.55);
 }
 
 .search-icon {
