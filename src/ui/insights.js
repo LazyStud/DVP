@@ -4,6 +4,8 @@
  */
 import { DEBUG } from '../debug.js';
 import { YEAR_MIN, YEAR_MAX } from '../config.js';
+import { state } from '../state.js';
+import { getVenueTossBias } from '../data/queries.js';
 
 let panel, backdrop, contentEl, fmtBtnsEl, footerEl;
 let isOpen = false;
@@ -136,17 +138,10 @@ export function close() {
 }
 
 async function refresh() {
-  const yr = window.__getYearRange?.() || { min: YEAR_MIN, max: YEAR_MAX };
-  const fn = window.__getVenueTossBias;
+  const yr = state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
 
   const topList    = panel.querySelector('.insights-top .insights-list');
   const bottomList = panel.querySelector('.insights-bottom .insights-list');
-
-  if (!fn) {
-    if (topList)    topList.innerHTML    = '<li class="insights-placeholder">Not available</li>';
-    if (bottomList) bottomList.innerHTML = '';
-    return;
-  }
 
   // Show loading inside the lists — don't clobber the column structure
   const loadHtml = '<li class="insights-loading-row">Loading…</li>';
@@ -155,7 +150,7 @@ async function refresh() {
 
   try {
     const minM = currentFormat === 'test' ? 8 : currentFormat === 'odi' ? 12 : 15;
-    const { top10, bottom10 } = await fn(yr, currentFormat, minM);
+    const { top10, bottom10 } = await getVenueTossBias(yr, currentFormat, minM);
     renderList('.insights-top .insights-list', top10);
     renderList('.insights-bottom .insights-list', bottom10);
     if (footerEl) footerEl.textContent = `Only venues with at least ${minM} decided matches (draws & no-results excluded) are shown.`;

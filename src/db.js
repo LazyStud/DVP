@@ -1,12 +1,9 @@
-// db.js — sql.js + IndexedDB caching
+// db.js — sql.js + IndexedDB caching (ES module)
 // Loads the SQLite DB into memory (sql.js), with persistent caching in IndexedDB.
 
 let SQL, db;
 
-const DEBUG = new URLSearchParams(location.search).has('debug');
-
-// eslint-disable-next-line no-unused-vars
-function reportError(scope, err) { if (DEBUG) console.warn('[' + scope + ']', err); }
+const DEBUG = new URLSearchParams(globalThis.location?.search ?? '').has('debug');
 
 const IDB_NAME  = "cricket-sqlite-cache";
 const IDB_STORE = "files";
@@ -60,7 +57,7 @@ async function idbDelete(key) {
   });
 }
 
-const DB = {
+export const DB = {
   /**
    * Initialize the in-memory DB.
    * @param {string|string[]} sources - URL or list of URLs to try (first success wins)
@@ -83,7 +80,6 @@ const DB = {
       const cached = await idbGet(cacheKey);
       if (cached && cached.byteLength) {
         db = new SQL.Database(new Uint8Array(cached));
-        // cache hit (info removed)
         return;
       }
     } catch (e) {
@@ -99,7 +95,6 @@ const DB = {
         const buf = await res.arrayBuffer();
         await idbPut(cacheKey, buf);
         db = new SQL.Database(new Uint8Array(buf));
-        // fetch logged at WARN level only on failure; successful fetch info suppressed
         return;
       } catch (e) {
         lastErr = e;
@@ -123,8 +118,12 @@ const DB = {
   async clearCache(prefix = "cricket.db::") {
     const keys = await idbKeys(prefix);
     await Promise.all(keys.map(idbDelete));
-    // cache cleared (info removed)
-  }
-};
+  },
 
-window.DB = DB;
+  /** Reset internal state — for testing only */
+  _resetForTest() {
+    SQL = undefined;
+    db  = undefined;
+    _idb = null;
+  },
+};

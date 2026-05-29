@@ -4,6 +4,7 @@
 import { DEBUG } from '../debug.js';
 import { YEAR_MIN, YEAR_MAX } from '../config.js';
 import { getHeadToHeadStats, getHeadToHeadBiggestWins, getHeadToHeadTopPlayers } from '../data/queries.js';
+import { state } from '../state.js';
 
 let panel, backdrop, selectA, selectB, contentEl, fmtBtnsEl;
 let isOpen = false;
@@ -184,7 +185,7 @@ async function loadComparison() {
     return;
   }
   contentEl.innerHTML = '<div class="h2h-loading">Loading...</div>';
-  const yr = window.__getYearRange?.() || { min: YEAR_MIN, max: YEAR_MAX };
+  const yr = state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
 
   try {
     const [stats, bigWins, topPlayers] = await Promise.all([

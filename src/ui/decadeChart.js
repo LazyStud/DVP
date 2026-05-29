@@ -5,6 +5,7 @@
 import { loadMatchTables } from '../data/queries.js';
 import { setRange }        from './yearSlider.js';
 import { state }           from '../state.js';
+import { DB }              from '../db.js';
 
 const DECADES = [
   { label: '2000s', min: 2000, max: 2009 },

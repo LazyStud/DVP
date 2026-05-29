@@ -1,10 +1,12 @@
 /* HTML tooltip helpers + rich country/venue tooltips.
- * Accesses globals: DB (db.js), d3 (CDN).
+ * Accesses globals: d3 (CDN).
  */
 import { DEBUG }                from '../debug.js';
 import { state }                from '../state.js';
 import { canonicalMapName }     from '../data/names.js';
 import { loadVenuesForCountry } from '../data/queries.js';
+import { VenueWindow }          from '../venue.js';
+import { DB }                   from '../db.js';
 
 // ── Core tooltip helpers ─────────────────────────────────────────────────────
 
@@ -158,7 +160,7 @@ export async function showVenueTooltip(ev, d) {
 
     const btn = state.tooltipEl?.querySelector('.map-tooltip-open');
     if (btn) btn.addEventListener('click', () => {
-      try { window.VenueWindow.open(d); hideTooltip(); } catch (e) { reportError('nonfatal', e); }
+      try { VenueWindow.open(d); hideTooltip(); } catch (e) { reportError('nonfatal', e); }
     });
   } catch (e) {
     if (DEBUG) console.warn('showVenueTooltip failed', e);

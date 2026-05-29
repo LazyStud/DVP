@@ -7,7 +7,7 @@ export default [
 
   js.configs.recommended,
 
-  // IIFE scripts loaded as plain <script> tags (db.js, venue.js, formats.js, tilt-toggle.js)
+  // Legacy IIFE scripts still at root (venue.js, venue-worker.js — kept for reference)
   {
     files: ['*.js'],
     languageOptions: {
@@ -17,9 +17,6 @@ export default [
         ...globals.browser,
         DEBUG:       'readonly',
         reportError: 'readonly',
-        Formats:     'readonly',
-        DB:          'readonly',
-        VenueWindow: 'readonly',
         d3:          'readonly',
         topojson:    'readonly',
         initSqlJs:   'readonly',
@@ -44,9 +41,6 @@ export default [
         ...globals.browser,
         DEBUG:       'readonly',
         reportError: 'readonly',
-        Formats:     'readonly',
-        DB:          'readonly',
-        VenueWindow: 'readonly',
         d3:          'readonly',
         topojson:    'readonly',
         initSqlJs:   'readonly',
@@ -61,16 +55,13 @@ export default [
     },
   },
 
-  // Files that DECLARE the shared globals — allow redeclaring them
-  {
-    files: ['db.js', 'formats.js'],
-    rules: { 'no-redeclare': 'off' },
-  },
 
-  // Web worker — has importScripts and self but not window
+  // Web workers — classic scripts with importScripts, self, no window
   {
-    files: ['venue-worker.js'],
+    files: ['venue-worker.js', 'src/venue-worker.js'],
     languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
       globals: { ...globals.worker },
     },
   },

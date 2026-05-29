@@ -2,23 +2,21 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import 'fake-indexeddb/auto';
 
-const WORKER_CODE = readFileSync(new URL('../../venue-worker.js', import.meta.url), 'utf8');
+const WORKER_CODE = readFileSync(new URL('../../src/venue-worker.js', import.meta.url), 'utf8');
 
-// Load a fresh copy of the venue-worker script and return { postMessage, onmessage }.
+// Load a fresh copy of src/venue-worker.js and return { postMessage, onmessage }.
 //
 // eval() is safe here: WORKER_CODE is read from a local project file at import
 // time, not from user input or the network. It mimics the browser creating a
-// Worker from the same file via new Worker('./venue-worker.js').
+// Worker from the same file via new Worker(new URL('./venue-worker.js', import.meta.url)).
 //
-// The worker uses importScripts() at the top for sql.js and formats.js — both
-// are mocked as no-ops so no network requests are made. Formats global is set
-// manually below.
+// The worker uses importScripts() for sql.js — mocked as a no-op so no network
+// requests are made. Formats functions are now inlined in the worker; no global needed.
 function loadWorker({ initSqlJsImpl } = {}) {
   const postMessage = vi.fn();
 
   globalThis.self         = { postMessage };
-  globalThis.importScripts = vi.fn(); // no-op: CDN + local script loads skipped
-  globalThis.Formats      = { formatLikePatterns: vi.fn().mockReturnValue(['%test%']) };
+  globalThis.importScripts = vi.fn(); // no-op: CDN loads skipped
   globalThis.initSqlJs    = initSqlJsImpl ?? vi.fn().mockResolvedValue({
     Database: class { constructor() {} },
   });
@@ -34,23 +32,20 @@ function loadWorker({ initSqlJsImpl } = {}) {
 // Helper: fire onmessage and await the first postMessage response.
 function sendAndReceive(onmessage, data) {
   return new Promise(resolve => {
-    // Re-bind so only the NEXT call resolves this promise
     globalThis.self.postMessage.mockImplementationOnce(resolve);
     onmessage({ data });
   });
 }
 
-describe('venue-worker.js', () => {
+describe('src/venue-worker.js', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     delete globalThis.self;
     delete globalThis.importScripts;
-    delete globalThis.Formats;
   });
 
   describe('aggregate action — DB unavailable', () => {
     it('posts an error when no DB binary is in the IDB cache', async () => {
-      // fake-indexeddb starts empty, so idbGet returns null → ensureDB throws
       const { onmessage } = loadWorker();
 
       const response = await sendAndReceive(onmessage, {

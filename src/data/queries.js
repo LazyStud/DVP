@@ -1,8 +1,11 @@
 /* DB queries — pure data computation, no draw calls.
  * After calling compute*, callers in main.js trigger the draw functions.
- * Accesses globals: DB (db.js), Formats (formats.js), d3 (CDN).
+ * Accesses globals: DB (db.js), d3 (CDN).
  */
 import { DEBUG }                          from '../debug.js';
+import { Formats }                        from '../formats.js';
+import { DB }                             from '../db.js';
+import { DB_URL }                         from '../config.js';
 import { state }                          from '../state.js';
 import {
   canonicalMapName, canonicalTeamName, hostToHomeTeamCountry,
@@ -87,7 +90,7 @@ let schemaCache = null;
 
 export async function getVenueSchema() {
   if (schemaCache) return schemaCache;
-  await DB.init(window._DB_URL || './data/db/cricket.db');
+  await DB.init(DB_URL);
   try { DB.queryAll("SELECT name FROM sqlite_master WHERE type='table'"); } catch (e) { reportError('nonfatal', e); }
   const colsRows = DB.queryAll('PRAGMA table_info(venues)');
   const cols = colsRows.map(r => (r.name || '').toLowerCase());
@@ -619,7 +622,7 @@ export async function getHeadToHeadTopPlayers(teamA, teamB, minYear, maxYear, fo
  * @returns {Promise<{byFormat:{test:{decided, battingFirstWins, pct, lo, hi}, odi:{...}, t20:{...}}}>}
  */
 export async function getVenueTossStats(aliases, yrRange, format = 'all') {
-  await DB.init(window._DB_URL || './data/db/cricket.db');
+  await DB.init(DB_URL);
 
   // Expand aliases via the DB's venues table to pick up historical names
   // (e.g. "sky stadium" → also "westpac stadium"). The venues table has a
@@ -692,7 +695,7 @@ export async function getVenueTossStats(aliases, yrRange, format = 'all') {
  * @returns {Promise<{top10:Array, bottom10:Array, total:number}>}
  */
 export async function getVenueTossBias(yrRange, format = 'all', minMatches = 20) {
-  await DB.init(window._DB_URL || './data/db/cricket.db');
+  await DB.init(DB_URL);
 
   const historicalToCanonical = getVenueCanonicalMap();
 
@@ -753,7 +756,7 @@ export async function getVenueTossBias(yrRange, format = 'all', minMatches = 20)
 // ── Search index queries ──────────────────────────────────────────────────────
 
 export async function getAllSearchVenues() {
-  await DB.init(window._DB_URL || './data/db/cricket.db');
+  await DB.init(DB_URL);
   const schema = await getVenueSchema();
   if (!schema) return [];
   try {
@@ -784,7 +787,7 @@ export async function getAllSearchVenues() {
 }
 
 export async function getAllSearchPlayers() {
-  await DB.init(window._DB_URL || './data/db/cricket.db');
+  await DB.init(DB_URL);
   try {
     const batters = DB.queryAll(
       `SELECT batter AS name, team, 'batting' AS kind

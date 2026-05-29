@@ -2,7 +2,8 @@
 import Fuse from 'fuse.js';
 import { state } from '../state.js';
 import { getAllSearchVenues, getAllSearchPlayers } from '../data/queries.js';
-import { openPlayer } from './playerWindow.js';
+import { openPlayer }  from './playerWindow.js';
+import { VenueWindow } from '../venue.js';
 import { focusGlobeOn, focusMapOn } from '../layers/focus.js';
 import { handleCountryClick } from '../layers/venues.js';
 import { canonicalMapName } from '../data/names.js';

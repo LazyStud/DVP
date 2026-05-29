@@ -1,4 +1,5 @@
 import { matchView } from '../data/queries.js';
+import { DB }        from '../db.js';
 
 function marginText(resultType, margin) {
   const n = parseInt(margin, 10);

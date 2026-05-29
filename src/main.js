@@ -1,7 +1,14 @@
 /* main.js — entry point. Imports all modules, sets up SVG, wires interactions, runs init. */
 import { DEBUG }                                      from './debug.js';
+
+// Polyfill window.reportError as a two-arg (scope, err) logger so all ES modules
+// that call it as a global continue to work. Replaces the fallback guard that used
+// to live in the venue.js IIFE.
+window.reportError = (scope, err) => { if (DEBUG) console.warn(`[${scope}]`, err); };
 import { state }                                      from './state.js';
 import { DB_URL, YEAR_MIN, YEAR_MAX, PALETTES, SPIN_DEG_PER_SEC } from './config.js';
+import { DB }                                         from './db.js';
+import { VenueWindow }                               from './venue.js';
 import { loadVenueCountries }                         from './data/queries.js';
 import { computeChoropleth, computeFlows, getVenueTossStats, getVenueTossBias } from './data/queries.js';
 import { drawStaticLayers }                           from './layers/sphere.js';
@@ -19,11 +26,11 @@ import { pushHash, readHash }                         from './ui/urlState.js';
 import { initPlayback }                               from './ui/playback.js';
 import { initThemeToggle }                            from './ui/themeToggle.js';
 import { initExportButtons, exportSvgAsPng }         from './ui/exportPng.js';
+import { initTiltToggle }                             from './ui/tiltToggle.js';
 import { open as openHeadToHead }                    from './ui/headToHead.js';
 import { open as openInsights }                      from './ui/insights.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
-import * as Typology                                   from './data/typology.js';
 import { initDecadeChart }                             from './ui/decadeChart.js';
 import { initSearch }                                  from './ui/search.js';
 import { initInsightsFeed, showInsightsFeed }          from './ui/insightsFeed.js';
@@ -58,7 +65,7 @@ state.gVenues   = gRoot.append('g').attr('class', 'venues');
 state.gFlowArcs = gRoot.append('g').attr('class', 'flows');
 state.gBubbles  = gRoot.append('g').attr('class', 'bubbles');
 
-VenueWindow.init({ svg: state.svg, gRoot, projectionRef: () => state.projection, modeRef: () => state.mode });
+// VenueWindow.init called after DB.init below (needs db + all deps)
 
 // ── Projections ───────────────────────────────────────────────────────────────
 
@@ -79,10 +86,6 @@ state.colorScales = {
   t20:  d3.scaleLinear().domain([0, 0.5, 1]).range(PALETTES.t20),
   test: d3.scaleLinear().domain([0, 0.5, 1]).range(PALETTES.test),
 };
-
-// ── Global window.selectedFormat (read by venue popup) ───────────────────────
-
-window.selectedFormat = state.selectedFormat;
 
 // ── Spin ──────────────────────────────────────────────────────────────────────
 
@@ -233,9 +236,18 @@ async function recomputeAndDraw(yearMin, yearMax) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-window._DB_URL = DB_URL;
 startNarrative();
 await DB.init(DB_URL);
+VenueWindow.init({
+  svg: state.svg, gRoot,
+  projectionRef:  () => state.projection,
+  modeRef:        () => state.mode,
+  formatRef:      () => state.selectedFormat,
+  db:             DB,
+  tossStatsRef:   getVenueTossStats,
+  tossBiasRef:    getVenueTossBias,
+  exportPngRef:   exportSvgAsPng,
+});
 try { initDecadeChart(); } catch (e) { if (DEBUG) console.warn('decadeChart init failed', e); }
 resize();
 drawStaticLayers();
@@ -265,24 +277,12 @@ wireLeaderboardEvents();
 const _h = readHash();
 state.yearRange     = { min: _h.yearMin, max: _h.yearMax };
 state.selectedFormat = _h.format;
-window.selectedFormat = _h.format;
 
 initYearBox(false);
 initPlayback();
 initThemeToggle();
+initTiltToggle();
 initExportButtons();
-window.exportSvgAsPng = exportSvgAsPng;
-window.__getYearRange = () => state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
-
-// ── Expose toss query functions for venue.js IIFE ────────────────────────────
-window.__getVenueTossStats = getVenueTossStats;
-window.__getVenueTossBias  = getVenueTossBias;
-
-// ── Typology bridge (T-3.4) ──────────────────────────────────────────────────
-window.Typology = {
-  loadContext: () => Typology.loadTypologyContext(window.DB),
-  classify:    Typology.classifyVenue,
-};
 
 // ── Head-to-head button ──────────────────────────────────────────────────────
 const h2hBtn = document.getElementById('h2hBtn');

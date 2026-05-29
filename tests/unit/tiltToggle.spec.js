@@ -1,17 +1,9 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { initTiltToggle } from '../../src/ui/tiltToggle.js';
 
-// import.meta.url uses http:// in jsdom environment, so resolve from cwd instead
-const SCRIPT = readFileSync(resolve(process.cwd(), 'tilt-toggle.js'), 'utf8');
-
-// Execute tilt-toggle.js and return the wired DOM references.
-// We intercept the DOMContentLoaded registration so the callback can be called
-// once per setup with fresh DOM elements, without accumulating listeners across
-// tests. eval() is safe here: the script is a local project IIFE read from disk,
-// equivalent to a browser <script> tag.
+// Set up DOM, call initTiltToggle(), and return wired references.
 function setup({ hasLanding = false } = {}) {
   document.body.className = hasLanding ? 'landing' : '';
   // innerHTML is safe here: the HTML is a hardcoded literal in the test file,
@@ -24,22 +16,7 @@ function setup({ hasLanding = false } = {}) {
     <button id="enterBtn">Enter</button>
   `;
 
-  // Capture the DOMContentLoaded callback before it is registered so we can
-  // call it once with the current DOM (and avoid listener accumulation).
-  let domLoadedCb = null;
-  const origAdd = window.addEventListener.bind(window);
-  window.addEventListener = function (event, cb, ...rest) {
-    if (event === 'DOMContentLoaded') { domLoadedCb = cb; return; }
-    origAdd(event, cb, ...rest);
-  };
-
-  // eval() is safe: SCRIPT is read from a local project file at import time,
-  // not from user input or the network. It mimics a browser <script> tag.
-  // eslint-disable-next-line no-eval
-  eval(SCRIPT);
-
-  window.addEventListener = origAdd; // restore before callback runs
-  domLoadedCb?.();                   // wire DOM with current elements
+  initTiltToggle();
 
   return {
     container: document.querySelector('.toggle'),
@@ -49,7 +26,7 @@ function setup({ hasLanding = false } = {}) {
   };
 }
 
-describe('tilt-toggle.js', () => {
+describe('tiltToggle.js', () => {
   describe('initial aria state', () => {
     it('sets aria-hidden="true" when body has .landing class', () => {
       const { container, textEl } = setup({ hasLanding: true });
@@ -104,7 +81,7 @@ describe('tilt-toggle.js', () => {
 
     it('dispatches view-toggle with map:false when unchecked', () => {
       const { input } = setup();
-      input.checked = true; // start checked
+      input.checked = true;
       let received = null;
       window.addEventListener('view-toggle', ev => { received = ev.detail; }, { once: true });
       input.checked = false;
@@ -132,17 +109,8 @@ describe('tilt-toggle.js', () => {
 
   describe('missing DOM elements', () => {
     it('returns early without throwing when elements are absent', () => {
-      document.body.innerHTML = ''; // no toggle elements
-      let domLoadedCb = null;
-      const origAdd = window.addEventListener.bind(window);
-      window.addEventListener = (event, cb, ...rest) => {
-        if (event === 'DOMContentLoaded') { domLoadedCb = cb; return; }
-        origAdd(event, cb, ...rest);
-      };
-      // eslint-disable-next-line no-eval
-      eval(SCRIPT); // safe: local project file, see top-of-file comment
-      window.addEventListener = origAdd;
-      expect(() => domLoadedCb?.()).not.toThrow();
+      document.body.innerHTML = '';
+      expect(() => initTiltToggle()).not.toThrow();
     });
   });
 });

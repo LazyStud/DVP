@@ -9,6 +9,8 @@ import {
   getPlayerYearBatting, getPlayerFormatBatting, getPlayerTopVenues,
   getPlayerYearBowling, getPlayerFormatBowling, getPlayerTopVenuesBowling,
 } from '../data/queries.js';
+import { state }           from '../state.js';
+import { exportSvgAsPng }  from './exportPng.js';
 
 let panel, titleEl, badgeEl, contentEl, exportBtn, yearRangeEl, fmtBar;
 let isOpen = false;
@@ -196,12 +198,12 @@ function ensurePanel() {
   // Export PNG
   exportBtn.addEventListener('click', () => {
     const svgEl = panel.querySelector('svg[data-role="player-chart"]');
-    if (!svgEl || !window.exportSvgAsPng) return;
+    if (!svgEl) return;
     const playerName = currentPlayer || 'Player';
     const safeName = playerName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
     const activeTab = panel.querySelector('.player-tab.active')?.dataset?.view || 'line';
     const fmtLabel = currentFormat === 'all' ? '' : ` \u2022 ${currentFormat.toUpperCase()}`;
-    window.exportSvgAsPng(svgEl, `cricket-${safeName}-${activeTab}.png`, {
+    exportSvgAsPng(svgEl, `cricket-${safeName}-${activeTab}.png`, {
       title: `${playerName} \u2022 ${currentKind}${fmtLabel} \u2022 ${activeTab}`,
       filters: yearRangeEl?.textContent || '',
     });
@@ -232,7 +234,7 @@ export function openPlayer(playerName, team, kind = 'batting') {
   fmtBar.style.display = '';
 
   // Update year range
-  const yr = window.__getYearRange?.() || { min: YEAR_MIN, max: YEAR_MAX };
+  const yr = state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
   yearRangeEl.textContent = `${yr.min}\u2013${yr.max}`;
 
   // Position the panel
@@ -280,7 +282,7 @@ function positionPanel() {
 async function renderCharts() {
   if (!isOpen || !currentPlayer) return;
   const activeTab = panel.querySelector('.player-tab.active')?.dataset?.view || 'line';
-  const yr = window.__getYearRange?.() || { min: YEAR_MIN, max: YEAR_MAX };
+  const yr = state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
   const svgEl = panel.querySelector('svg[data-role="player-chart"]');
   const infoRow = document.getElementById('playerInfoRow');
   if (!svgEl) return;

@@ -1,9 +1,13 @@
-/* VenueWindow: lightweight anchored popup with radar placeholder */
-if (typeof reportError !== 'function') { window.reportError = function () {}; }
-if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
-(function () {
-  let svgRef, gRootRef, getProjection, getMode;
-  let panel, titleEl, badgeEl, typologyChipEl, contentEl;
+/* VenueWindow: venue detail panel with radar chart (ES module) */
+import { DEBUG } from './debug.js';
+import { normalizeFormat } from './formats.js';
+import { loadTypologyContext, classifyVenue } from './data/typology.js';
+
+function reportError(scope, err) { if (DEBUG) console.warn(`[${scope}]`, err); }
+
+let svgRef, gRootRef, getProjection, getMode;
+let _db, _getFormat, _tossStatsRef, _exportPngRef;
+let panel, titleEl, badgeEl, typologyChipEl, contentEl;
   let isOpen = false;
   let currentDatum = null;
   let _prevFocus = null;
@@ -19,7 +23,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
   function ensureWorker(){
     if (_venueWorker) return;
     try{
-      _venueWorker = new Worker('venue-worker.js');
+      _venueWorker = new Worker(new URL('./venue-worker.js', import.meta.url));
       _venueWorker.onmessage = (ev) => {
         const msg = ev.data || {};
         const id = msg.id;
@@ -225,7 +229,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
     exportBtn.title = 'Save PNG';
     exportBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/><rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg>';
     exportBtn.addEventListener('click', () => {
-      if (!window.exportSvgAsPng) return;
+      if (!_exportPngRef) return;
       const evoVisible = !evoWrap.classList.contains('hidden');
       const svgEl = evoVisible
         ? evoWrap.querySelector('svg[data-role="evo-heatmap"]')
@@ -241,7 +245,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
       const fmt       = currentFormat === 'all' ? 'All formats' : (currentFormat || 'all').toUpperCase();
       const safeName  = venueName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
-      window.exportSvgAsPng(
+      _exportPngRef(
         svgEl,
         `cricket-${safeName}-${evoVisible ? 'evolution' : 'radar'}.png`,
         {
@@ -271,7 +275,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
     // track current year range for queries and update badge
     const currentYearRange = { min: 2000, max: 2025 };
     // current format (shared between listeners)
-    let currentFormat = (window.selectedFormat || 'all');
+    let currentFormat = (_getFormat ? _getFormat() : null) || 'all';
 
     window.addEventListener("yearrange:change", (ev) => {
       const { min, max } = ev.detail || {};
@@ -293,7 +297,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
 
     // react to format filter changes (published by map.js)
     window.addEventListener('format:change', (ev) => {
-      currentFormat = (ev?.detail?.format) || (window.selectedFormat || 'all');
+      currentFormat = (ev?.detail?.format) || (_getFormat ? _getFormat() : null) || 'all';
       // if panel is open, refresh metrics
       if (isOpen && currentDatum) fetchAndRender(currentDatum, currentYearRange, currentFormat);
     });
@@ -551,7 +555,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
 
   // fetch aggregated metrics for a venue + year range + format and render radar + textual summaries
   async function fetchAndRender(datum, yrRange = {min:2000,max:2025}, format = 'all'){
-    format = Formats.normalizeFormat(format);
+    format = normalizeFormat(format);
     const svgEl = panel.querySelector('svg[data-role="radar"]');
     if (!svgEl) return;
     const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
@@ -582,12 +586,12 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
       try { drawEvolutionHeatmap(cached.rows, yrRange, format); } catch(e){ if (DEBUG) console.warn('evolution draw (cache) failed', e); }
       if (loadingOverlay) loadingOverlay.style.display = 'none';
       try {
-        if (window.Typology && typologyChipEl) {
-          const ctx = await window.Typology.loadContext();
+        if (typologyChipEl) {
+          const ctx = await loadTypologyContext(_db);
           const bf = (cached.metrics && cached.metrics.byFormat) || {};
           const fmtKey = (format === 'all') ? pickDominantFormat(bf) : format;
           const m = bf[fmtKey];
-          renderTypologyChip(m ? window.Typology.classify(
+          renderTypologyChip(m ? classifyVenue(
             { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
               bowling_avg: m.bowling_avg, matches_count: m.matches_count },
             fmtKey, ctx) : null);
@@ -614,7 +618,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
       const sqlParams = [yrRange.min, yrRange.max, ...aliasLikes.map(x => x), ...(format && format !== 'all' ? [`%${format}%`] : [])];
       let rows = [];
       try {
-        rows = DB.queryAll(sql, sqlParams) || [];
+        rows = _db.queryAll(sql, sqlParams) || [];
       } catch (e) {
         if (DEBUG) console.warn('venue_stats query failed', e);
         rows = [];
@@ -645,7 +649,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
           WHERE CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? AND (${likeExpr})
           GROUP BY LOWER(COALESCE(m.format,''))`;
 
-          const batRows = DB.queryAll(batSql, paramsBase) || [];
+          const batRows = _db.queryAll(batSql, paramsBase) || [];
 
           // Batting innings-by-number (for radar tooltip/innings_by_no)
           const innSql = `SELECT LOWER(COALESCE(m.format,'')) AS format,
@@ -658,7 +662,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
           GROUP BY LOWER(COALESCE(m.format,'')), innings_no
           ORDER BY LOWER(COALESCE(m.format,'')), innings_no`;
 
-          const innRows = DB.queryAll(innSql, paramsBase) || [];
+          const innRows = _db.queryAll(innSql, paramsBase) || [];
 
           // Bowling aggregates per-format
           const bowlSql = `SELECT LOWER(COALESCE(m.format,'')) AS format,
@@ -673,7 +677,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
           WHERE CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? AND (${likeExpr})
           GROUP BY LOWER(COALESCE(m.format,''))`;
 
-          const bowlRows = DB.queryAll(bowlSql, paramsBase) || [];
+          const bowlRows = _db.queryAll(bowlSql, paramsBase) || [];
 
           // Organize results by format and synthesize rows similar to venue_stats
           const batMap = Object.create(null);
@@ -717,7 +721,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
 
       // Group rows by normalized format key and aggregate sums
       const byFormat = { test: null, odi: null, t20: null };
-      const normFormat = (s) => { const k = Formats.normalizeFormat(s); return k === 'all' ? 'other' : k; };
+      const normFormat = (s) => { const k = normalizeFormat(s); return k === 'all' ? 'other' : k; };
 
       const groups = {};
       for (const r of rows) {
@@ -781,7 +785,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
         const fb = panel._fallback_innings || null;
         if (fb) {
           Object.keys(fb).forEach(k => {
-            const _nk = Formats.normalizeFormat(k); const norm = _nk === 'all' ? null : _nk;
+            const _nk = normalizeFormat(k); const norm = _nk === 'all' ? null : _nk;
             if (!norm) return;
             if (byFormat[norm]) byFormat[norm].innings_by_no = (fb[k] || []).map(x => ({ innings_no: x.innings_no, avg_runs: Number(x.avg_runs || 0), count: Number(x.cnt || 0) }));
           });
@@ -814,8 +818,8 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
 
       // ── Toss impact card (T-3.3) ────────────────────────────────────────────
       try {
-        if (window.__getVenueTossStats) {
-          const tossData = await window.__getVenueTossStats(aliases, yrRange, format);
+        if (_tossStatsRef) {
+          const tossData = await _tossStatsRef(aliases, yrRange, format);
           const tossList = panel.querySelector('.venue-toss-list');
           if (tossList && tossData && tossData.byFormat) {
             tossList.innerHTML = '';
@@ -851,11 +855,11 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
 
       // ── Typology chip (T-3.4) ───────────────────────────────────────────────
       try {
-        if (window.Typology && typologyChipEl) {
-          const ctx = await window.Typology.loadContext();
+        if (typologyChipEl) {
+          const ctx = await loadTypologyContext(_db);
           const fmtKey = (format === 'all') ? pickDominantFormat(byFormat) : format;
           const m = byFormat[fmtKey];
-          renderTypologyChip(m ? window.Typology.classify(
+          renderTypologyChip(m ? classifyVenue(
             { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
               bowling_avg: m.bowling_avg, matches_count: m.matches_count },
             fmtKey, ctx) : null);
@@ -1018,10 +1022,15 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
   }
 
   /* API */
-  function init({ svg, gRoot, projectionRef, modeRef }){
+  function init({ svg, gRoot, projectionRef, modeRef, formatRef, db, tossStatsRef, tossBiasRef: _tossBiasRef, exportPngRef }){
     svgRef = svg; gRootRef = gRoot;
     getProjection = projectionRef;
     getMode = modeRef;
+    _getFormat = formatRef;
+    _db = db;
+    _tossStatsRef = tossStatsRef;
+    _exportPngRef = exportPngRef;
+    void _tossBiasRef; // accepted for API symmetry; insights.js imports getVenueTossBias directly
     ensurePanel();
   }
 
@@ -1086,7 +1095,7 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
         const m = yr.match(/(\d{4})\s*[–-]\s*(\d{4})/);
         if (m) { min = +m[1]; max = +m[2]; }
       }catch(e){ reportError('nonfatal', e); }
-      const fmt = window.selectedFormat || 'all';
+      const fmt = (_getFormat ? _getFormat() : null) || 'all';
       // fetch DB metrics and render radar
       // show immediate per-panel loading overlay while fetching
       const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
@@ -1139,5 +1148,4 @@ if (typeof DEBUG === 'undefined') { window.DEBUG = false; }
     placeAtDatum(currentDatum);
   }
 
-  window.VenueWindow = { init, open, close, reposition, isOpen: () => isOpen };
-})();
+export const VenueWindow = { init, open, close, reposition, isOpen: () => isOpen };

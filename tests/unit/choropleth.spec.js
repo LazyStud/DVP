@@ -6,9 +6,7 @@ import {
   hostToHomeTeamCountry,
 } from '../../src/data/names.js';
 
-// Load formats.js global IIFE so normalizeFormat is available
-await import('../../formats.js');
-const { normalizeFormat } = globalThis.Formats;
+import { normalizeFormat } from '../../src/formats.js';
 
 // Shared dependency bundle passed to aggregateChoropleth
 const fns = { canonicalMapName, canonicalTeamName, hostToHomeTeamCountry, normalizeFormat };
