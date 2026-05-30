@@ -1417,6 +1417,7 @@ body { background: transparent; }
   border: 1px solid rgba(255,255,255,0.04);
 }
 .venue-legend-label { font-size: 0.95rem; color: var(--text); }
+.venue-legend-count { font-size: 0.78rem; color: var(--muted); margin-left: 2px; }
 
 /* Venue legend sizing moved from inline styles: keep layout responsive */
 .venue-legend { flex: 1 1 240px; min-width: 220px; min-height: 48px; }
@@ -1464,6 +1465,10 @@ body { background: transparent; }
 
 /* Tab bar (Radar / Evolution) */
 .venue-tabbar { display: flex; gap: 8px; margin: 8px 0; }
+
+/* Match count summary line below tab bar */
+.venue-match-summary { font-size: 0.8rem; color: var(--muted); min-height: 1.2em; margin-bottom: 4px; }
+.venue-summary-sep { opacity: 0.5; }
 
 /* Evolution heatmap panel */
 .venue-evolution { margin-top: 8px; }

@@ -175,7 +175,11 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
     <div class="venue-toss-list"></div>
   `;
 
+  const matchSummary = document.createElement('div');
+  matchSummary.className = 'venue-match-summary';
+
   contentEl.appendChild(tabBar);
+  contentEl.appendChild(matchSummary);
   contentEl.appendChild(topRow);
   contentEl.appendChild(evoWrap);
     contentEl.appendChild(info);
@@ -193,7 +197,7 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
       btn.className = 'venue-legend-item';
       btn.setAttribute('data-format', f.key);
       btn.setAttribute('aria-pressed', 'true');
-      btn.innerHTML = `<i class="legend-dot" style="background:${f.color};box-shadow:0 2px 6px ${f.color}33;"></i><span class="venue-legend-label">${f.label}</span>`;
+      btn.innerHTML = `<i class="legend-dot" style="background:${f.color};box-shadow:0 2px 6px ${f.color}33;"></i><span class="venue-legend-label">${f.label}</span><span class="venue-legend-count"></span>`;
       btn.addEventListener('click', (_e) => {
         const fmt = btn.getAttribute('data-format');
         const pressed = btn.getAttribute('aria-pressed') === 'true';
@@ -358,25 +362,35 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
     const w = +svg.attr("width") || 280;
     const h = +svg.attr("height") || 170;
     const cx = w/2, cy = h/2, r = Math.min(w, h)/2 - 22;
-    const axes = ["Bat SR", "Bat Avg", "Boundary %", "Bowl Econ", "Bowl Avg", "Bowl SR"];
+    const axes = [
+      { label: 'Bat SR',      key: 'batting_sr',   fmt: v => String(Math.round(v)) },
+      { label: 'Bat Avg',     key: 'batting_avg',  fmt: v => v.toFixed(1) },
+      { label: 'Boundary %',  key: 'boundary_pct', fmt: v => v.toFixed(1) + '%' },
+      { label: 'Bowl Econ',   key: 'bowling_econ', fmt: v => v.toFixed(2) },
+      { label: 'Bowl Avg',    key: 'bowling_avg',  fmt: v => v.toFixed(1) },
+      { label: 'Bowl SR',     key: 'bowling_sr',   fmt: v => String(Math.round(v)) }
+    ];
     const n = axes.length;
     const g = svg.append("g").attr("transform", `translate(${cx},${cy})`);
 
     // draw concentric rings
     [0.25, 0.5, 0.75, 1].forEach(k => g.append("circle").attr("r", r*k).attr("fill", "none").attr("stroke", "rgba(231,246,239,0.12)"));
 
-    // axis lines and labels
+    // axis lines and labels — store text refs for attaching hover tooltips below
+    const axisEls = [];
     axes.forEach((a, i) => {
       const ang = (i / n) * 2 * Math.PI - Math.PI/2;
       const x = Math.cos(ang) * r, y = Math.sin(ang) * r;
       g.append("line").attr("x1",0).attr("y1",0).attr("x2",x).attr("y2",y).attr("stroke","rgba(231,246,239,0.2)");
-      g.append("text")
-        .attr("x", Math.cos(ang) * (r + 8))
-        .attr("y", Math.sin(ang) * (r + 8) + 4)
-        .attr("text-anchor", Math.cos(ang) > 0.1 ? "start" : (Math.cos(ang) < -0.1 ? "end" : "middle"))
-        .attr("font-size", 11)
-        .attr("fill", "var(--muted)")
-        .text(a);
+      axisEls.push(
+        g.append("text")
+          .attr("x", Math.cos(ang) * (r + 8))
+          .attr("y", Math.sin(ang) * (r + 8) + 4)
+          .attr("text-anchor", Math.cos(ang) > 0.1 ? "start" : (Math.cos(ang) < -0.1 ? "end" : "middle"))
+          .attr("font-size", 11)
+          .attr("fill", "var(--muted)")
+          .text(a.label)
+      );
     });
 
     // metrics may be attached via svgEl._metrics or via dataset
@@ -385,7 +399,19 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
       try { svgEl._metrics = JSON.parse(svgEl.dataset.metrics); } catch(e){ reportError('nonfatal', e); }
     }
     const metricsByFormat = (svgEl._metrics && svgEl._metrics.byFormat) ? svgEl._metrics.byFormat : null;
+    // sync legend match counts — runs on every drawRadar call including cache hits and no-data paths
+    if (panel) {
+      ['test', 'odi', 't20'].forEach(key => {
+        const btn = panel.querySelector(`.venue-legend-item[data-format="${key}"]`);
+        const countEl = btn && btn.querySelector('.venue-legend-count');
+        if (countEl) {
+          const m = metricsByFormat && metricsByFormat[key];
+          countEl.textContent = (m && m.matches_count) ? `· ${m.matches_count}` : '';
+        }
+      });
+    }
     if (!metricsByFormat) {
+      const _s = panel && panel.querySelector('.venue-match-summary'); if (_s) _s.textContent = '';
       // placeholder polygon (semi-filled)
       const placeholder = d3.range(n).map(() => 0.6);
       const line = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
@@ -495,6 +521,7 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
     // If there are no matches across all formats, show a neutral placeholder and
     // render labels as em-dashes to avoid implying numeric data.
     if (totalMatchesAcross === 0) {
+      const _s = panel && panel.querySelector('.venue-match-summary'); if (_s) _s.textContent = '';
       const placeholder = d3.range(n).map(() => 0.35);
       const linePh = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
       g.append("path").datum(placeholder).attr("d", linePh).attr("fill", "rgba(120,120,120,0.06)")
@@ -530,6 +557,59 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
         .attr("fill", "var(--muted)")
         .attr("text-anchor", "middle")
         .text(txt);
+    });
+
+    // match count summary line: "67 matches · Test 12 · ODI 35 · T20I 20"
+    const summaryEl = panel && panel.querySelector('.venue-match-summary');
+    if (summaryEl) {
+      const fmtNameMap = { test: 'Test', odi: 'ODI', t20: 'T20I' };
+      const totalM = FORMATS.reduce((s, f) => s + ((metricsByFormat[f.key] && metricsByFormat[f.key].matches_count) || 0), 0);
+      summaryEl.textContent = '';
+      if (totalM) {
+        summaryEl.appendChild(document.createTextNode(`${totalM} matches`));
+        FORMATS.forEach(f => {
+          const m = metricsByFormat[f.key];
+          if (!m || !m.matches_count) return;
+          const sep = document.createElement('span'); sep.className = 'venue-summary-sep'; sep.textContent = ' · ';
+          summaryEl.appendChild(sep);
+          summaryEl.appendChild(document.createTextNode(`${fmtNameMap[f.key]} ${m.matches_count}`));
+        });
+      }
+    }
+
+    // per-format hover tooltips on axis labels
+    const fmtColors = { test: '#e6cf9a', odi: '#2dd4bf', t20: '#a78bfa' };
+    const fmtNames  = { test: 'Test',    odi: 'ODI',     t20: 'T20I'   };
+    axes.forEach((a, i) => {
+      axisEls[i].style('cursor', 'default').on('mouseenter', (ev) => {
+        document.querySelectorAll('.venue-axis-tip').forEach(el => el.remove());
+        const tip = document.createElement('div');
+        tip.className = 'venue-heat-tip venue-axis-tip';
+        const hdr = document.createElement('strong');
+        hdr.style.cssText = 'display:block;margin-bottom:3px';
+        hdr.textContent = a.label;
+        tip.appendChild(hdr);
+        ['test', 'odi', 't20'].forEach((k, ki) => {
+          if (ki > 0) {
+            const sep = document.createElement('span');
+            sep.style.cssText = 'margin:0 5px;color:var(--muted)';
+            sep.textContent = '·';
+            tip.appendChild(sep);
+          }
+          const dot = document.createElement('span');
+          dot.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${fmtColors[k]};margin-right:3px;vertical-align:middle`;
+          tip.appendChild(dot);
+          const m = metricsByFormat[k];
+          const val = (m && m.matches_count && m[a.key] != null) ? a.fmt(+m[a.key]) : '—';
+          tip.appendChild(document.createTextNode(`${fmtNames[k]} ${val}`));
+        });
+        document.body.appendChild(tip);
+        const bbox = ev.target.getBoundingClientRect();
+        tip.style.left = `${bbox.right + 8}px`;
+        tip.style.top  = `${bbox.top - 4}px`;
+      }).on('mouseleave', () => {
+        document.querySelectorAll('.venue-axis-tip').forEach(el => el.remove());
+      });
     });
   }
 
@@ -981,21 +1061,46 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
       const cellW = Math.max(12, Math.floor(iw / Math.max(1, years.length)));
       const cellH = Math.max(18, Math.floor(ih / metrics.length));
 
-      // draw grid
-      g.append('g').attr('class','heat-rows');
+      // empty state when no rows match the current format filter
+      if (!usedRows.length) {
+        const totalH = metrics.length * cellH;
+        const ovG = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+        ovG.append('rect').attr('x', 0).attr('y', 0).attr('width', iw).attr('height', totalH).attr('fill', 'rgba(0,0,0,0.18)').attr('rx', 4);
+        ovG.append('text').attr('x', iw / 2).attr('y', totalH / 2 + 5).attr('text-anchor', 'middle').attr('font-size', 13).attr('fill', 'var(--muted)').text('No matches in this period');
+        return;
+      }
+
+      // column background rects — one per year, highlighted together with the row on cell hover
+      const colBgs = years.map((_, ci) =>
+        g.append('rect')
+          .attr('x', ci * cellW).attr('y', 0)
+          .attr('width', cellW - 1).attr('height', metrics.length * cellH)
+          .attr('fill', 'none').attr('pointer-events', 'none')
+      );
+
+      // draw grid — one <g> per row so a background rect can highlight the whole row on hover
       metrics.forEach((m, ri) => {
-        const y = ri * cellH;
+        const rowY = ri * cellH;
+        const rowG = g.append('g').attr('class', 'heat-row');
+
+        // full-width transparent rect; fills on any cell hover to aid row tracking
+        const rowBg = rowG.append('rect')
+          .attr('x', -(margin.left - 12)).attr('y', rowY - 1)
+          .attr('width', (margin.left - 12) + years.length * cellW).attr('height', cellH + 1)
+          .attr('rx', 2).attr('fill', 'none').attr('pointer-events', 'none');
+
         // metric label
-        g.append('text').attr('x', -10).attr('y', y + cellH/2 + 4).attr('text-anchor','end').attr('font-size',11).attr('fill','var(--muted)').text(m.label);
-        const rowVals = matrix[ri];
-        rowVals.forEach((v, ci) => {
+        rowG.append('text').attr('x', -10).attr('y', rowY + cellH/2 + 4).attr('text-anchor','end').attr('font-size',11).attr('fill','var(--muted)').text(m.label);
+
+        matrix[ri].forEach((v, ci) => {
           const x = ci * cellW;
-          const cell = g.append('rect').attr('x', x).attr('y', y).attr('width', cellW-1).attr('height', cellH-2).attr('rx',2).attr('ry',2)
+          const cell = rowG.append('rect').attr('x', x).attr('y', rowY).attr('width', cellW-1).attr('height', cellH-2).attr('rx',2).attr('ry',2)
             .style('stroke','rgba(0,0,0,0.06)').style('stroke-width',0.5)
             .style('fill', v==null ? '#efefef' : (colorScales[ri] ? colorScales[ri](v) : '#ddd'));
-          // tooltip
           if (v != null){
             cell.on('mouseenter', (ev) => {
+              rowBg.attr('fill', 'rgba(255,255,255,0.07)');
+              colBgs[ci].attr('fill', 'rgba(255,255,255,0.05)');
               document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove());
               const tip = document.createElement('div');
               tip.className = 'venue-heat-tip';
@@ -1003,7 +1108,11 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
               document.body.appendChild(tip);
               const rect = ev.target.getBoundingClientRect();
               tip.style.left = `${rect.right + 8}px`; tip.style.top = `${rect.top}px`;
-            }).on('mouseleave', () => { document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove()); });
+            }).on('mouseleave', () => {
+              rowBg.attr('fill', 'none');
+              colBgs[ci].attr('fill', 'none');
+              document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove());
+            });
           }
         });
       });
