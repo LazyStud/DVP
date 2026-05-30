@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Global Cricket Insights • 2000–2025</title>
+  <link rel="icon" type="image/svg+xml" href="/data/icon/CricketStadium.svg" />
   <link rel="stylesheet" href="styles.css?v=t25" />
   <!-- Apply saved theme before first paint to prevent flash -->
   <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('gci-theme')||'dark');}catch(_){}</script>
@@ -81,19 +82,22 @@
     </button>
   </div>
 
-  <!-- top-right view toggle (user-provided markup) + short dynamic label -->
-  <div class="toggle-wrap" aria-hidden="true" title="3D globe active — click to switch to 2D atlas">
-  <div id="toggleText" class="toggle-text" aria-hidden="true">3D / 2D</div>
-    <div class="toggle">
-      <input type="checkbox" id="btn">
-      <label for="btn">
-        <span class="thumb"></span>
+  <!-- top-right cricket ball toggle (3D ↔ 2D) -->
+  <div class="view-toggle-wrap" id="viewPill" title="3D globe active — click to switch to 2D atlas">
+    <span class="view-toggle-label view-toggle-3d">3D</span>
+    <div class="cricket-toggle">
+      <input class="cricket-toggle-input" type="checkbox" id="viewToggleBtn"
+             role="switch" aria-checked="false" aria-label="Switch between 3D globe and 2D atlas">
+      <label class="cricket-track" for="viewToggleBtn">
+        <span class="cricket-ball">
+          <svg class="ball-seam" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M7 1.5 C3.5 7 3.5 13 7 18.5"  stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M13 1.5 C16.5 7 16.5 13 13 18.5" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
       </label>
-      <div class="lights">
-        <span class="light-off"></span>
-        <span class="light-on"></span>
-      </div>
     </div>
+    <span class="view-toggle-label view-toggle-2d">2D</span>
   </div>
 
   <!-- Legend (created dynamically via D3 in map.js) -->

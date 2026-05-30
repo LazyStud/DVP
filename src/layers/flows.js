@@ -99,7 +99,7 @@ export function renderFlowFilterUI() {
     const cb  = document.createElement('input'); cb.type = 'checkbox'; cb.value = k; cb.checked = true; cb.className = 'flow-filter-cb';
     const sw  = document.createElement('span');  sw.className = 'flow-filter-swatch'; sw.style.background = state.countryColors.get(k) || state.countryColorScale(k);
     const lbl = document.createElement('span');  lbl.textContent = k; lbl.className = 'flow-filter-lbl';
-    row.appendChild(cb); row.appendChild(sw); row.appendChild(lbl);
+    row.appendChild(cb); row.appendChild(lbl); row.appendChild(sw);
     row.addEventListener('click', ev => { if (ev.target?.tagName === 'INPUT') return; cb.checked = !cb.checked; updateFlowSelectionFromUI(); });
     cb.addEventListener('change', () => updateFlowSelectionFromUI());
     container.appendChild(row);

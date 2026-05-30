@@ -1,75 +1,51 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { initTiltToggle } from '../../src/ui/tiltToggle.js';
 
-// Set up DOM, call initTiltToggle(), and return wired references.
-function setup({ hasLanding = false } = {}) {
-  document.body.className = hasLanding ? 'landing' : '';
-  // innerHTML is safe here: the HTML is a hardcoded literal in the test file,
-  // not user-supplied or network-sourced data.
+// innerHTML is safe here: hardcoded literal in test file, not user-supplied.
+function setup() {
+  document.body.className = '';
   document.body.innerHTML = `
-    <div class="toggle" style="display:none" aria-hidden="true">
-      <input type="checkbox" id="btn" role="switch" aria-checked="false" />
-      <span id="toggleText"></span>
+    <div class="view-toggle-wrap" id="viewPill">
+      <span class="view-toggle-label view-toggle-3d">3D</span>
+      <div class="cricket-toggle">
+        <input class="cricket-toggle-input" type="checkbox" id="viewToggleBtn" role="switch" aria-checked="false">
+        <label class="cricket-track" for="viewToggleBtn">
+          <span class="cricket-ball"></span>
+        </label>
+      </div>
+      <span class="view-toggle-label view-toggle-2d">2D</span>
     </div>
-    <button id="enterBtn">Enter</button>
   `;
-
   initTiltToggle();
-
   return {
-    container: document.querySelector('.toggle'),
-    input:     document.getElementById('btn'),
-    textEl:    document.getElementById('toggleText'),
-    enterBtn:  document.getElementById('enterBtn'),
+    wrap:  document.getElementById('viewPill'),
+    input: document.getElementById('viewToggleBtn'),
   };
 }
 
 describe('tiltToggle.js', () => {
-  describe('initial aria state', () => {
-    it('sets aria-hidden="true" when body has .landing class', () => {
-      const { container, textEl } = setup({ hasLanding: true });
-      expect(container.getAttribute('aria-hidden')).toBe('true');
-      expect(textEl.getAttribute('aria-hidden')).toBe('true');
+  beforeEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
+
+  describe('initial state', () => {
+    it('checkbox is unchecked on init (3D mode)', () => {
+      const { input } = setup();
+      expect(input.checked).toBe(false);
     });
 
-    it('sets aria-hidden="false" when body lacks .landing class', () => {
-      const { container, textEl } = setup({ hasLanding: false });
-      expect(container.getAttribute('aria-hidden')).toBe('false');
-      expect(textEl.getAttribute('aria-hidden')).toBe('false');
+    it('aria-checked is false on init', () => {
+      const { input } = setup();
+      expect(input.getAttribute('aria-checked')).toBe('false');
     });
-  });
 
-  describe('enter button', () => {
-    it('shows the toggle and clears aria-hidden when clicked', () => {
-      const { container, enterBtn } = setup();
-      enterBtn.click();
-      expect(container.style.display).toBe('');
-      expect(container.getAttribute('aria-hidden')).toBe('false');
+    it('wrap title contains "3D globe active" on init', () => {
+      const { wrap } = setup();
+      expect(wrap.title).toContain('3D globe active');
     });
   });
 
-  describe('label', () => {
-    it('initialises text to "3D / 2D"', () => {
-      const { textEl } = setup();
-      expect(textEl.textContent).toBe('3D / 2D');
-    });
-
-    it('sets globe title when checkbox is unchecked (3D mode)', () => {
-      const { container } = setup();
-      expect(container.title).toContain('3D globe active');
-    });
-
-    it('sets atlas title when checkbox is checked (2D mode)', () => {
-      const { input, container } = setup();
-      input.checked = true;
-      input.dispatchEvent(new window.Event('change'));
-      expect(container.title).toContain('2D atlas active');
-    });
-  });
-
-  describe('checkbox → view-toggle event', () => {
+  describe('checkbox change → view-toggle event', () => {
     it('dispatches view-toggle with map:true when checked', () => {
       const { input } = setup();
       let received = null;
@@ -88,14 +64,36 @@ describe('tiltToggle.js', () => {
       input.dispatchEvent(new window.Event('change'));
       expect(received).toEqual({ map: false });
     });
+
+    it('updates aria-checked to true when checked', () => {
+      const { input } = setup();
+      input.checked = true;
+      input.dispatchEvent(new window.Event('change'));
+      expect(input.getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('updates title to atlas when switched to 2D', () => {
+      const { input, wrap } = setup();
+      input.checked = true;
+      input.dispatchEvent(new window.Event('change'));
+      expect(wrap.title).toContain('2D atlas active');
+    });
   });
 
   describe('view-mode-sync event', () => {
-    it('sets checkbox.checked and aria-checked from event detail', () => {
+    it('checks the input when detail.map is true', () => {
       const { input } = setup();
       window.dispatchEvent(new window.CustomEvent('view-mode-sync', { detail: { map: true } }));
       expect(input.checked).toBe(true);
       expect(input.getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('unchecks the input when detail.map is false', () => {
+      const { input } = setup();
+      window.dispatchEvent(new window.CustomEvent('view-mode-sync', { detail: { map: true } }));
+      window.dispatchEvent(new window.CustomEvent('view-mode-sync', { detail: { map: false } }));
+      expect(input.checked).toBe(false);
+      expect(input.getAttribute('aria-checked')).toBe('false');
     });
 
     it('handles missing detail gracefully', () => {
