@@ -50,10 +50,17 @@ ok('SVG has children (drawing)',   await page.locator('#globe svg *').count() > 
 // ── 2. Enter button transition ───────────────────────────────────────────────
 console.log('\n2. "Explore data" transition');
 await page.locator('#enterBtn').click();
-await page.waitForTimeout(800);
+// transitionend may not fire in headless; fallback fires at DUR+200=900ms —
+// poll until both landing classes are gone (up to 2s) instead of a fixed 800ms wait.
+await page.waitForFunction(
+  () => !document.body.classList.contains('landing') && !document.body.classList.contains('landing-exit'),
+  { timeout: 2000 }
+).catch(() => {});
 
-const bodyClass = await page.evaluate(() => document.body.className);
-ok('body class changed from "landing"', !bodyClass.includes('landing'));
+const isLandingGone = await page.evaluate(
+  () => !document.body.classList.contains('landing') && !document.body.classList.contains('landing-exit')
+);
+ok('body class changed from "landing"', isLandingGone);
 ok('globe still visible after transition', await page.locator('#globe').isVisible());
 
 // ── 3. Choropleth + spikes render ────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { ICON_PATH, ICON_BASE }               from '../config.js';
 import { canonicalMapName }                   from '../data/names.js';
 import { loadVenuesForCountry }               from '../data/queries.js';
 import { showVenueTooltip, moveTooltipToEvent, hideTooltip } from '../ui/tooltip.js';
+import { VenueWindow } from '../venue.js';
 import { toast, toastHide }                   from '../ui/toast.js';
 import { focusGlobeOn, focusMapOn }           from './focus.js';
 import { pushHash }                           from '../ui/urlState.js';
@@ -38,7 +39,7 @@ export function drawVenues() {
     .attr('width', ICON_BASE).attr('height', ICON_BASE)
     .attr('opacity', 0.95)
     .on('pointerdown', event => {
-      try { event.stopPropagation(); } catch (_) {}
+      try { event.stopPropagation(); } catch (_) { /* empty */ }
       state.stopSpin?.();
     })
     .on('click', (event, d) => {

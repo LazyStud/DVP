@@ -1,7 +1,14 @@
 /* main.js — entry point. Imports all modules, sets up SVG, wires interactions, runs init. */
 import { DEBUG }                                      from './debug.js';
+
+// Polyfill window.reportError as a two-arg (scope, err) logger so all ES modules
+// that call it as a global continue to work. Replaces the fallback guard that used
+// to live in the venue.js IIFE.
+window.reportError = (scope, err) => { if (DEBUG) console.warn(`[${scope}]`, err); };
 import { state }                                      from './state.js';
 import { DB_URL, YEAR_MIN, YEAR_MAX, PALETTES, SPIN_DEG_PER_SEC } from './config.js';
+import { DB }                                         from './db.js';
+import { VenueWindow }                               from './venue.js';
 import { loadVenueCountries }                         from './data/queries.js';
 import { computeChoropleth, computeFlows, getVenueTossStats, getVenueTossBias } from './data/queries.js';
 import { drawStaticLayers }                           from './layers/sphere.js';
@@ -12,21 +19,25 @@ import { drawBubbles, updateBubblePositions, updateBubbleLegend } from './layers
 import { drawVenues, updateVenuesPosition }           from './layers/venues.js';
 import { createLegendUI, setupFormatUI }              from './ui/legends.js';
 import { renderLeaderboard, wireLeaderboardEvents } from './ui/leaderboard.js';
-import { updateInstruction }                          from './ui/instructionBox.js';
+import { updateInstruction, initInstructionBox }       from './ui/instructionBox.js';
 import { hideVenueLoading }                           from './ui/toast.js';
 import { initYearBox }                                from './ui/yearSlider.js';
 import { pushHash, readHash }                         from './ui/urlState.js';
 import { initPlayback }                               from './ui/playback.js';
 import { initThemeToggle }                            from './ui/themeToggle.js';
 import { initExportButtons, exportSvgAsPng }         from './ui/exportPng.js';
+import { initTiltToggle }                             from './ui/tiltToggle.js';
 import { open as openHeadToHead }                    from './ui/headToHead.js';
 import { open as openInsights }                      from './ui/insights.js';
 import { handleCountryClick }                         from './layers/venues.js';
 import { canonicalMapName }                           from './data/names.js';
-import * as Typology                                   from './data/typology.js';
 import { initDecadeChart }                             from './ui/decadeChart.js';
 import { initSearch }                                  from './ui/search.js';
 import { initInsightsFeed, showInsightsFeed }          from './ui/insightsFeed.js';
+import { initBeatHover }                               from './ui/beatHover.js';
+import { initTodayInCricket }                          from './ui/todayInCricket.js';
+import { startNarrative, finishNarrative }              from './ui/loadingNarrative.js';
+import { initHostNationPulse }                          from './ui/hostNationPulse.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -54,7 +65,7 @@ state.gVenues   = gRoot.append('g').attr('class', 'venues');
 state.gFlowArcs = gRoot.append('g').attr('class', 'flows');
 state.gBubbles  = gRoot.append('g').attr('class', 'bubbles');
 
-VenueWindow.init({ svg: state.svg, gRoot, projectionRef: () => state.projection, modeRef: () => state.mode });
+// VenueWindow.init called after DB.init below (needs db + all deps)
 
 // ── Projections ───────────────────────────────────────────────────────────────
 
@@ -75,10 +86,6 @@ state.colorScales = {
   t20:  d3.scaleLinear().domain([0, 0.5, 1]).range(PALETTES.t20),
   test: d3.scaleLinear().domain([0, 0.5, 1]).range(PALETTES.test),
 };
-
-// ── Global window.selectedFormat (read by venue popup) ───────────────────────
-
-window.selectedFormat = state.selectedFormat;
 
 // ── Spin ──────────────────────────────────────────────────────────────────────
 
@@ -168,16 +175,16 @@ function setMode(newMode) {
   }
   updateToggleUI();
   document.body.classList.toggle('map-mode', state.mode === 'map');
-  try { if (state.spikeLegendSection) state.spikeLegendSection.style.display = state.mode === 'map' ? 'none' : 'block'; } catch (_) {}
+  try { if (state.spikeLegendSection) state.spikeLegendSection.style.display = state.mode === 'map' ? 'none' : 'block'; } catch (_) { /* empty */ }
   state.spikeScale.range([0, state.mode === 'globe' ? 56 : 40]);
   updateSpikesPosition();
   try {
     if (state.bubbleLegendSection) state.bubbleLegendSection.style.display = state.mode === 'map' ? 'block' : 'none';
     const flowCtrl = document.querySelector('.flow-controls'); if (flowCtrl) flowCtrl.style.display = state.mode === 'globe' ? 'flex' : 'none';
     const bubbleMetricEl = document.querySelector('.bubble-metric'); if (bubbleMetricEl) bubbleMetricEl.style.display = state.mode === 'map' ? 'block' : 'none';
-  } catch (_) {}
-  try { updateInstruction(state.mode); } catch (e) { reportError('nonfatal', e); }
-  try { pushHash(); } catch (_) {}
+  } catch (_) { /* empty */ }
+  try { updateInstruction(state.mode); initInstructionBox(); } catch (e) { reportError('nonfatal', e); }
+  try { pushHash(); } catch (_) { /* empty */ }
 }
 
 window.addEventListener('view-toggle', ev => setMode(ev?.detail?.map ? 'map' : 'globe'));
@@ -210,7 +217,7 @@ state.svg.on('dblclick', () => {
     state.svg.transition().duration(400).call(zoomMap.transform, d3.zoomIdentity).on('end', () => gRoot.attr('transform', null));
     state.mapZoomK = 1; state.countryFocused = false;
   }
-  try { pushHash({ country: '' }); } catch (_) {}
+  try { pushHash({ country: '' }); } catch (_) { /* empty */ }
 });
 
 // ── Orchestrated recompute ────────────────────────────────────────────────────
@@ -229,15 +236,25 @@ async function recomputeAndDraw(yearMin, yearMax) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-window._DB_URL = DB_URL;
+startNarrative();
 await DB.init(DB_URL);
+VenueWindow.init({
+  svg: state.svg, gRoot,
+  projectionRef:  () => state.projection,
+  modeRef:        () => state.mode,
+  formatRef:      () => state.selectedFormat,
+  db:             DB,
+  tossStatsRef:   getVenueTossStats,
+  tossBiasRef:    getVenueTossBias,
+  exportPngRef:   exportSvgAsPng,
+});
 try { initDecadeChart(); } catch (e) { if (DEBUG) console.warn('decadeChart init failed', e); }
 resize();
 drawStaticLayers();
 drawCountries();
 
 state.venuesAll = []; state.venueIndex.clear();
-try { state.venueCountrySet = await loadVenueCountries(); applyCountryHighlight(); }
+try { state.venueCountrySet = await loadVenueCountries(); applyCountryHighlight(); initHostNationPulse(); }
 catch (e) { if (DEBUG) console.warn('Could not load venue countries:', e); }
 
 gRoot.call(dragGlobe);
@@ -260,24 +277,12 @@ wireLeaderboardEvents();
 const _h = readHash();
 state.yearRange     = { min: _h.yearMin, max: _h.yearMax };
 state.selectedFormat = _h.format;
-window.selectedFormat = _h.format;
 
 initYearBox(false);
 initPlayback();
 initThemeToggle();
+initTiltToggle();
 initExportButtons();
-window.exportSvgAsPng = exportSvgAsPng;
-window.__getYearRange = () => state.yearRange || { min: YEAR_MIN, max: YEAR_MAX };
-
-// ── Expose toss query functions for venue.js IIFE ────────────────────────────
-window.__getVenueTossStats = getVenueTossStats;
-window.__getVenueTossBias  = getVenueTossBias;
-
-// ── Typology bridge (T-3.4) ──────────────────────────────────────────────────
-window.Typology = {
-  loadContext: () => Typology.loadTypologyContext(window.DB),
-  classify:    Typology.classifyVenue,
-};
 
 // ── Head-to-head button ──────────────────────────────────────────────────────
 const h2hBtn = document.getElementById('h2hBtn');
@@ -292,26 +297,24 @@ try { initSearch(); } catch (e) { if (DEBUG) console.warn('search init failed', 
 
 // ── Insights feed (T-3.7) ────────────────────────────────────────────────────
 try { initInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed init failed', e); }
-const insightsFeedBtn = document.getElementById('insightsFeedBtn');
-if (insightsFeedBtn) { insightsFeedBtn.addEventListener('click', () => { try { showInsightsFeed(); } catch (e) { if (DEBUG) console.warn('insightsFeed', e); } }); }
 
 // Debounced year-range handler
 let _yearRangeDebounce = null;
 const YEAR_DEBOUNCE_MS = 300;
-window.addEventListener('format:change', () => { try { pushHash(); } catch (_) {} });
+window.addEventListener('format:change', () => { try { pushHash(); } catch (_) { /* empty */ } });
 
 window.addEventListener('yearrange:change', ev => {
   const { min, max } = ev.detail || {};
   if (DEBUG) console.info('[SLIDER] requested range:', min, max);
   state.yearRange = { min, max };
-  try { const ybv = document.getElementById('yearBoxValue'); if (ybv) ybv.textContent = `Years ${min}–${max}`; } catch (_) {}
-  try { pushHash(); } catch (_) {}
+  try { const ybv = document.getElementById('yearBoxValue'); if (ybv) ybv.textContent = `Years ${min}–${max}`; } catch (_) { /* empty */ }
+  try { pushHash(); } catch (_) { /* empty */ }
 
   if (_yearRangeDebounce) clearTimeout(_yearRangeDebounce);
   _yearRangeDebounce = setTimeout(async () => {
     _yearRangeDebounce = null;
     try {
-      try { const t = document.getElementById('loadingToast'); if (t) { t.textContent = 'Updating visuals…'; t.classList.add('show'); } } catch (_) {}
+      try { const t = document.getElementById('loadingToast'); if (t) { t.textContent = 'Updating visuals…'; t.classList.add('show'); } } catch (_) { /* empty */ }
       await recomputeAndDraw(min, max);
       try {
         const overlay = document.getElementById('leaderboardOverlay');
@@ -322,22 +325,25 @@ window.addEventListener('yearrange:change', ev => {
       } catch (e) { if (DEBUG) console.warn('year-range leaderboard refresh failed', e); }
     } catch (e) { if (DEBUG) console.warn('yearrange change handler failed', e); }
     finally {
-      try { const t = document.getElementById('loadingToast'); if (t) t.classList.remove('show'); } catch (_) {}
+      try { const t = document.getElementById('loadingToast'); if (t) t.classList.remove('show'); } catch (_) { /* empty */ }
     }
   }, YEAR_DEBOUNCE_MS);
 });
 
 await recomputeAndDraw(state.yearRange.min, state.yearRange.max);
+await finishNarrative();
 setupFormatUI();
+try { initBeatHover(); } catch (e) { if (DEBUG) console.warn('beatHover init failed', e); }
+try { initTodayInCricket(); } catch (e) { if (DEBUG) console.warn('todayInCricket init failed', e); }
 
 // Bubble metric selector
 try {
   const bsel = document.getElementById('bubbleMetricSelect');
   if (bsel) {
-    try { bsel.value = state.bubbleMetric; } catch (_) {}
+    try { bsel.value = state.bubbleMetric; } catch (_) { /* empty */ }
     bsel.addEventListener('change', ev => {
       state.bubbleMetric = ev.target.value || 'matches';
-      try { localStorage.setItem('bubbleMetric', state.bubbleMetric); } catch (_) {}
+      try { localStorage.setItem('bubbleMetric', state.bubbleMetric); } catch (_) { /* empty */ }
       try { updateBubbleLegend(); } catch (e) { reportError('nonfatal', e); }
     });
   }
@@ -367,7 +373,7 @@ try {
       document.querySelectorAll('#flowCountryList').forEach(n => n.style.display = 'none');
       fCountryList.style.display = show ? 'block' : 'none';
     });
-    document.addEventListener('click', () => { try { fCountryList.style.display = 'none'; } catch (_) {} });
+    document.addEventListener('click', () => { try { fCountryList.style.display = 'none'; } catch (_) { /* empty */ } });
   }
   if (fSelectAll) {
     fSelectAll.addEventListener('change', () => {
@@ -377,15 +383,105 @@ try {
     });
   }
   try { renderFlowFilterUI(); } catch (e) { reportError('nonfatal', e); }
-  try { const fc = document.querySelector('.flow-controls'); if (fc) fc.style.display = state.mode === 'globe' ? 'flex' : 'none'; } catch (_) {}
+  try { const fc = document.querySelector('.flow-controls'); if (fc) fc.style.display = state.mode === 'globe' ? 'flex' : 'none'; } catch (_) { /* empty */ }
 } catch (e) { reportError('nonfatal', e); }
 
-// Landing → explore
-enterBtn?.addEventListener('click', () => {
-  document.body.classList.remove('landing');
-  setMode('globe');
-  requestAnimationFrame(() => { resize(); startSpin(); });
-});
+// Landing → explore (transform-based: center moves right→middle while globe grows)
+function triggerExplore() {
+  if (!document.body.classList.contains('landing')) return;
+
+  const globe = document.getElementById('globe');
+  if (!globe) {
+    document.body.classList.remove('landing');
+    resize(); startSpin();
+    return;
+  }
+
+  const rect = globe.getBoundingClientRect();
+  const vw   = window.innerWidth;
+  const vh   = window.innerHeight;
+
+  // Current globe center (viewport coords)
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+
+  // D3 places the globe circle at radius = min(dim)/2 * 0.95 inside its container.
+  // Scale so the animated circle ends at exactly the size D3 will use for fullscreen —
+  // that way stripping the transform after the animation causes no visible snap.
+  const r0    = (Math.min(rect.width,  rect.height) / 2) * 0.95;
+  const rFull = (Math.min(vw, vh) / 2) * 0.95;
+  const scale = rFull / r0;
+
+  // Translation needed to carry the center from its current position to screen-center
+  const tx = vw / 2 - cx;
+  const ty = vh / 2 - cy;
+
+  const DUR  = 700;
+  const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+  // Pin the current landing position as explicit pixels so transform: none is a
+  // no-visual-change baseline (overrides the right/top/%/translateY CSS rules).
+  Object.assign(globe.style, {
+    position:        'fixed',
+    left:            `${rect.left}px`,
+    top:             `${rect.top}px`,
+    width:           `${rect.width}px`,
+    height:          `${rect.height}px`,
+    right:           'auto',
+    bottom:          'auto',
+    transform:       'none',
+    transformOrigin: '50% 50%',
+    borderRadius:    '50%',   // kept throughout — SVG only paints the sphere circle
+    overflow:        'hidden', // clips to the circle so no corners ever show
+    transition:      'none',
+    zIndex:          '10',
+  });
+
+  document.body.classList.add('landing-exit');
+
+  // Commit the pin before starting the transition
+  globe.getBoundingClientRect();
+
+  // Animate only transform — the circle stays circular the whole way.
+  // finish() runs synchronously so the snap to fullscreen CSS happens in one repaint.
+  globe.style.transition = `transform ${DUR}ms ${EASE}`;
+  globe.style.transform  = `translate(${tx}px, ${ty}px) scale(${scale.toFixed(4)})`;
+
+  // finish() runs synchronously — the browser batches this into one repaint,
+  // so resize()+redraw happen before the user sees anything after the animation.
+  function finish() {
+    globe.style.cssText = '';
+    document.body.classList.remove('landing', 'landing-exit');
+    try { applyChoropleth(); } catch (e) { reportError('nonfatal', e); }
+    resize();
+    startSpin();
+  }
+
+  const onEnd = ev => {
+    if (ev.propertyName !== 'transform') return;
+    globe.removeEventListener('transitionend', onEnd);
+    clearTimeout(fallback);
+    finish();
+  };
+  globe.addEventListener('transitionend', onEnd);
+  const fallback = setTimeout(() => {
+    globe.removeEventListener('transitionend', onEnd);
+    finish();
+  }, DUR + 200);
+}
+
+enterBtn?.addEventListener('click', triggerExplore);
+
+// Scroll-lock: wheel-down or touch-swipe-up triggers explore from landing
+window.addEventListener('wheel', ev => {
+  if (document.body.classList.contains('landing') && ev.deltaY > 0) triggerExplore();
+}, { passive: true });
+let _touchStartY = 0;
+window.addEventListener('touchstart', ev => { _touchStartY = ev.touches[0]?.clientY ?? 0; }, { passive: true });
+window.addEventListener('touchend', ev => {
+  if (document.body.classList.contains('landing') && _touchStartY - (ev.changedTouches[0]?.clientY ?? 0) > 40)
+    triggerExplore();
+}, { passive: true });
 
 // ── Apply hash state that requires post-init DOM/data ────────────────────────
 const _hashHasState = _h.view !== 'globe'

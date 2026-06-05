@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
-// formats.js is a legacy global IIFE — importing it attaches Formats to globalThis.
-// The fix in formats.js ensures it uses globalThis as root in Node 20.
-await import('../../formats.js');
-const { normalizeFormat, formatLikePatterns } = globalThis.Formats;
+import { normalizeFormat, formatLikePatterns } from '../../src/formats.js';
 
 // ── normalizeFormat ───────────────────────────────────────────────────────────
 

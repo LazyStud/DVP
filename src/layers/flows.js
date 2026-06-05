@@ -52,7 +52,7 @@ export function drawFlowArcs() {
         .attr('d', state.path({ type: 'LineString', coordinates: coords }))
         .attr('stroke-width', Math.max(0.6, state.flowWidthScale(d.matches)))
         .attr('stroke', col);
-    } catch (_) { d3.select(this).attr('d', null); }
+    } catch (e) { reportError('nonfatal', e); d3.select(this).attr('d', null); }
   });
 
   updateFlowPositions();
@@ -60,7 +60,7 @@ export function drawFlowArcs() {
 
 export function updateFlowPositions() {
   if (!state.flowVisible) {
-    try { state.gFlowArcs.selectAll('path.flow').style('display', 'none'); } catch (_) {}
+    try { state.gFlowArcs.selectAll('path.flow').style('display', 'none'); } catch (_) { /* empty */ }
     return;
   }
   if (state.mode === 'map') { state.gFlowArcs.selectAll('path.flow').style('display', 'none'); return; }
@@ -79,7 +79,7 @@ export function updateFlowPositions() {
         .attr('d', state.path({ type: 'LineString', coordinates: coords }))
         .attr('stroke-width', Math.max(0.6, state.flowWidthScale(d.matches)) * (state.mode === 'globe' ? state.globeZoomK : 1))
         .attr('stroke', col);
-    } catch (_) { d3.select(this).attr('d', null); }
+    } catch (e) { reportError('nonfatal', e); d3.select(this).attr('d', null); }
   });
 }
 
@@ -99,7 +99,7 @@ export function renderFlowFilterUI() {
     const cb  = document.createElement('input'); cb.type = 'checkbox'; cb.value = k; cb.checked = true; cb.className = 'flow-filter-cb';
     const sw  = document.createElement('span');  sw.className = 'flow-filter-swatch'; sw.style.background = state.countryColors.get(k) || state.countryColorScale(k);
     const lbl = document.createElement('span');  lbl.textContent = k; lbl.className = 'flow-filter-lbl';
-    row.appendChild(cb); row.appendChild(sw); row.appendChild(lbl);
+    row.appendChild(cb); row.appendChild(lbl); row.appendChild(sw);
     row.addEventListener('click', ev => { if (ev.target?.tagName === 'INPUT') return; cb.checked = !cb.checked; updateFlowSelectionFromUI(); });
     cb.addEventListener('change', () => updateFlowSelectionFromUI());
     container.appendChild(row);

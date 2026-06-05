@@ -1,10 +1,12 @@
 /* HTML tooltip helpers + rich country/venue tooltips.
- * Accesses globals: DB (db.js), d3 (CDN).
+ * Accesses globals: d3 (CDN).
  */
 import { DEBUG }                from '../debug.js';
 import { state }                from '../state.js';
 import { canonicalMapName }     from '../data/names.js';
 import { loadVenuesForCountry } from '../data/queries.js';
+import { VenueWindow }          from '../venue.js';
+import { DB }                   from '../db.js';
 
 // ── Core tooltip helpers ─────────────────────────────────────────────────────
 
@@ -77,13 +79,7 @@ function ensureTooltip() {
   if (state.tooltipEl) return state.tooltipEl;
   const el = document.createElement('div');
   el.id = 'map-tooltip';
-  Object.assign(el.style, {
-    position: 'fixed', zIndex: 2200, pointerEvents: 'none',
-    background: 'rgba(0,0,0,0.78)', color: 'white',
-    padding: '8px 10px', borderRadius: '6px',
-    fontSize: '0.9rem', maxWidth: '320px',
-    boxShadow: '0 6px 18px rgba(0,0,0,0.5)', display: 'none',
-  });
+  Object.assign(el.style, { position: 'fixed', zIndex: 2200, pointerEvents: 'none', display: 'none' });
   document.body.appendChild(el);
   state.tooltipEl = el;
   return el;
@@ -116,13 +112,12 @@ export async function showVenueTooltip(ev, d) {
     const name    = d.venue || d.name || '';
     const city    = d.city  || d.town  || '';
     const country = d.country || '';
-    const basic   = `<div style="font-weight:600;margin-bottom:6px">${escapeHtml(name)}</div>
-      <div style="font-size:0.9rem;color:#dfe6ea;margin-bottom:6px">
+    const basic   = `<div class="ctt-name">${escapeHtml(name)}</div>
+      <div style="font-size:0.84rem;color:#9fb6c8;margin-bottom:6px">
         ${escapeHtml(city)}${country ? ' &middot; ' + escapeHtml(country) : ''}
       </div>`;
-    showTooltipAt(ev.clientX, ev.clientY, basic + '<div style="color:#bcd">Loading…</div>');
+    showTooltipAt(ev.clientX, ev.clientY, basic + '<div style="color:#8ba9bc;font-size:0.82rem">Loading…</div>');
 
-    // Build alias list the same way the venue detail does so match counts stay in sync.
     const _aliasSet = new Set();
     const _push = s => { const v = String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (v) _aliasSet.add(v); };
     _push(name);
@@ -141,24 +136,24 @@ export async function showVenueTooltip(ev, d) {
          FROM venue_stats WHERE (${_likeExprs})`, _likes
       ) || [];
       if (rows[0]) agg = rows[0];
-    } catch (_) {}
+    } catch (e) { reportError('nonfatal', e); }
 
     const parts = [
-      `<div style="font-size:0.92rem;margin-bottom:6px">Total matches (all years): <strong style="color:#fff">${agg.matches || 0}</strong></div>`,
-      `<div style="display:flex;gap:8px;font-size:0.88rem;color:#cfe8f5">
+      `<div style="font-size:0.9rem;margin-bottom:5px">Total matches: <strong style="color:#fff">${agg.matches || 0}</strong></div>`,
+      `<div style="display:flex;gap:8px;font-size:0.84rem;color:#9fb6c8">
         <div>Test: <strong style="color:#fff">${agg.test_matches || 0}</strong></div>
         <div>ODI: <strong style="color:#fff">${agg.odi_matches || 0}</strong></div>
         <div>T20: <strong style="color:#fff">${agg.t20_matches || 0}</strong></div>
       </div>`,
-      `<div style="margin-top:8px;font-size:0.85rem;color:#bcd">
-        <button class="map-tooltip-open" style="background:#1f77b4;color:white;border:none;padding:6px 8px;border-radius:6px;cursor:pointer">Open venue details</button>
+      `<div style="margin-top:8px">
+        <button class="map-tooltip-open" style="background:#1f77b4;color:white;border:none;padding:5px 9px;border-radius:6px;cursor:pointer;font-size:0.82rem">Open venue details</button>
       </div>`,
     ];
     showTooltipAt(ev.clientX, ev.clientY, basic + parts.join(''));
 
     const btn = state.tooltipEl?.querySelector('.map-tooltip-open');
     if (btn) btn.addEventListener('click', () => {
-      try { window.VenueWindow.open(d); hideTooltip(); } catch (e) { reportError('nonfatal', e); }
+      try { VenueWindow.open(d); hideTooltip(); } catch (e) { reportError('nonfatal', e); }
     });
   } catch (e) {
     if (DEBUG) console.warn('showVenueTooltip failed', e);
@@ -171,38 +166,73 @@ export async function showCountryTooltip(ev, feature) {
   try {
     const cname = canonicalMapName(feature.properties?.name || '');
     const rec   = state.choroByCountry.get(cname) || null;
-    let html = `<div style="font-weight:600;margin-bottom:6px">${escapeHtml(feature.properties?.name || cname)}</div>`;
+    let html = `<div class="ctt-name">${escapeHtml(feature.properties?.name || cname)}</div>`;
+
     if (!rec) {
-      html += `<div style="color:#bcd">No match data available</div>`;
+      html += `<div style="font-size:0.84rem;color:#8ba9bc">No match data available</div>`;
       showTooltipAt(ev.clientX, ev.clientY, html); return;
     }
-    const total = rec.matches || 0; const wins = rec.homeWins || 0;
+
+    const total = rec.matches || 0;
+    const wins  = rec.homeWins || 0;
     const pct   = total ? Math.round((wins / total) * 100) : 0;
-    html += `<div style="font-size:0.92rem;margin-bottom:6px">Home wins: <strong style="color:#fff">${pct}%</strong> (${wins}/${total})</div>`;
-    html += '<div style="display:flex;gap:8px;font-size:0.88rem;color:#cfe8f5">';
-    for (const f of ['test', 'odi', 't20']) {
+
+    // Home advantage badge
+    let badge = '';
+    if      (pct >= 62) badge = `<span class="ctt-badge ctt-badge-fortress">Dominant</span>`;
+    else if (pct >= 54) badge = `<span class="ctt-badge ctt-badge-strong">Strong home</span>`;
+    else if (pct <= 40) badge = `<span class="ctt-badge ctt-badge-weak">Away-friendly</span>`;
+
+    html += `<div class="ctt-headline">Home wins: <strong>${pct}%</strong> (${wins}/${total}) ${badge}</div>`;
+    html += `<div class="ctt-bar"><div class="ctt-bar-fill" style="width:${pct}%"></div></div>`;
+
+    // Format grid — highlight the best win-rate format (minimum 5 matches)
+    const fmts = ['test', 'odi', 't20'].map(f => {
       const fr = rec.formats?.[f] || { matches: 0, homeWins: 0 };
-      const mp = fr.matches || 0; const wp = fr.homeWins || 0;
-      const wpct = mp ? Math.round((wp / mp) * 100) : 0;
-      html += `<div style="min-width:80px">${f.toUpperCase()}: <strong style="color:#fff">${mp}</strong><div style="color:#9fb6c8;font-size:0.78rem">win ${wpct}%</div></div>`;
-    }
+      const m  = fr.matches  || 0;
+      const w  = fr.homeWins || 0;
+      return { f, m, w, rate: m >= 5 ? w / m : 0 };
+    });
+    const bestIdx = fmts.reduce((bi, cur, i) => cur.rate > fmts[bi].rate ? i : bi, 0);
+
+    html += '<div class="ctt-formats">';
+    fmts.forEach(({ f, m, rate }, i) => {
+      const best = (i === bestIdx && m >= 5) ? ' ctt-best' : '';
+      html += `<div class="ctt-fmt${best}">
+        <div class="ctt-fmt-f">${f.toUpperCase()}</div>
+        <div class="ctt-fmt-n">${m}</div>
+        <div class="ctt-fmt-w">win ${m ? Math.round(rate * 100) : '—'}%</div>
+      </div>`;
+    });
     html += '</div>';
-    // Sparkline of matches hosted per year
+
+    // Sparkline + peak year
     if (rec.byYear) {
       const pts = Object.entries(rec.byYear)
         .map(([y, c]) => ({ year: +y, count: c }))
         .sort((a, b) => a.year - b.year);
       if (pts.length) {
-        html += `<div style="margin-top:6px;color:#bcd;font-size:0.78rem">Matches per year${sparklineSvg(pts)}</div>`;
+        const peak = pts.reduce((a, b) => b.count > a.count ? b : a);
+        html += `<div class="ctt-spark-hdr">
+          <span class="ctt-label">Matches per year</span>
+          <span class="ctt-peak">Peak: ${peak.year} &middot; ${peak.count}</span>
+        </div>`;
+        html += sparklineSvg(pts, 242, 44);
       }
     }
+
+    // Venues (async — show count + top 3 names)
     try {
       const venues = await loadVenuesForCountry(cname);
       if (venues && venues.length) {
         const top = venues.slice(0, 3).map(v => escapeHtml(v.venue || v.name || '—'));
-        html += `<div style="margin-top:8px;color:#bcd;font-size:0.86rem">Notable venues: <strong style="color:#fff">${top.join(', ')}</strong></div>`;
+        html += `<div class="ctt-venues">
+          <span class="ctt-label">${venues.length} venue${venues.length !== 1 ? 's' : ''} &middot;</span>
+          <strong>${top.join(', ')}</strong>
+        </div>`;
       }
     } catch (e) { reportError('nonfatal', e); }
+
     showTooltipAt(ev.clientX, ev.clientY, html);
   } catch (e) {
     if (DEBUG) console.warn('showCountryTooltip failed', e);

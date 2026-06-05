@@ -12,5 +12,4 @@ export const PALETTES = {
   test: ['#fff7e6', '#f4b942', '#8b4513'],
 };
 
-export const SPIKE_COLOR    = '#ff0000';
 export const FLOW_MAP_COLOR = '#39d353';

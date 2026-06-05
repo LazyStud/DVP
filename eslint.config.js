@@ -7,21 +7,16 @@ export default [
 
   js.configs.recommended,
 
-  // Base config for all source JS files
+  // Legacy IIFE scripts still at root (venue.js, venue-worker.js — kept for reference)
   {
-    files: ['*.js', 'src/**/*.js'],
+    files: ['*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: {
         ...globals.browser,
-        // project globals declared in one file, consumed by others
         DEBUG:       'readonly',
         reportError: 'readonly',
-        Formats:     'readonly',
-        DB:          'readonly',
-        VenueWindow: 'readonly',
-        // CDN libraries loaded via <script> tags
         d3:          'readonly',
         topojson:    'readonly',
         initSqlJs:   'readonly',
@@ -36,16 +31,37 @@ export default [
     },
   },
 
-  // Files that DECLARE the shared globals — allow redeclaring them
+  // ES modules under src/ — support import/export and top-level await
   {
-    files: ['db.js', 'formats.js'],
-    rules: { 'no-redeclare': 'off' },
+    files: ['src/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+        DEBUG:       'readonly',
+        reportError: 'readonly',
+        d3:          'readonly',
+        topojson:    'readonly',
+        initSqlJs:   'readonly',
+      },
+    },
+    rules: {
+      'prefer-const':              'warn',
+      'no-unused-vars':            ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-async-promise-executor': 'error',
+      'no-undef':                  'error',
+      'no-prototype-builtins':     'error',
+    },
   },
 
-  // Web worker — has importScripts and self but not window
+
+  // Web workers — classic scripts with importScripts, self, no window
   {
-    files: ['venue-worker.js'],
+    files: ['venue-worker.js', 'src/venue-worker.js'],
     languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
       globals: { ...globals.worker },
     },
   },

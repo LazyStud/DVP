@@ -61,7 +61,7 @@ export function renderBubbleLegend(maxMatches) {
   const svgL = d3.select(state.bubbleLegend);
   svgL.selectAll('*').remove();
   const w = +svgL.attr('width') || 160, h = +svgL.attr('height') || 56;
-  try { svgL.attr('role', 'img').attr('aria-label', `Bubble size legend — ${state.bubbleMetric}`); } catch (_) {}
+  try { svgL.attr('role', 'img').attr('aria-label', `Bubble size legend — ${state.bubbleMetric}`); } catch (_) { /* empty */ }
 
   const ticks   = [Math.max(1, Math.round(maxMatches / 4)), Math.max(1, Math.round(maxMatches / 2)), Math.max(1, Math.round(maxMatches))];
   const radii   = ticks.map(t => state.bubbleRadiusScale(t));

@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Global Cricket Insights • 2000–2025</title>
+  <link rel="icon" type="image/svg+xml" href="/data/icon/CricketStadium.svg" />
   <link rel="stylesheet" href="styles.css?v=t25" />
   <!-- Apply saved theme before first paint to prevent flash -->
   <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('gci-theme')||'dark');}catch(_){}</script>
@@ -13,7 +14,9 @@
   <div id="bgLayer" aria-hidden="true"></div>
 
     <!-- Globe is OUTSIDE hero so it survives when hero hides -->
-  <div id="globe" role="img" aria-label="Interactive cricket world map"></div>
+  <div id="globe" role="img" aria-label="Interactive cricket world map">
+    <div id="globePreviewLabel" class="globe-preview-label" aria-hidden="true"></div>
+  </div>
 
     <!-- Left-side instruction box (dynamic: content updated by map.js) -->
     <div id="instructionBox" class="instructions" aria-live="polite"></div>
@@ -22,96 +25,104 @@
   <section class="hero">
     <div class="hero-left">
       <h1>Global Cricket Insights</h1>
-      <p>
-        Explore global cricket data from 2000–2025 with interactive visualisations and per-venue analysis.
-        This project loads match and innings CSV data into an in-browser SQL database, computes
-        metrics (home win %, matches hosted, venue batting/bowling aggregates, etc.), and
-        visualises them on a 2D map or a 3D globe.
-      </p>
-      <ul class="hero-points">
-        <li>Data: CSVs located in <code>data/csvs/</code> (matches, venues, innings, batting_innings, bowling_innings, venue_stats).</li>
-        <li>Processing: in-browser SQL (sql.js) powered by <code>db.js</code> plus a dedicated web worker (<code>venue-worker.js</code>) for heavy venue calculations.</li>
-        <li>Visuals: choropleth of <em>home win %</em>, "win spike" markers sized by matches hosted, and per-venue detail panels with innings-level breakdowns.</li>
-        <li>Interactions: year range slider, 2D/3D globe toggle, tilt control, click a country to list venues, and a Leaderboard overlay for batting and bowling stats.</li>
-        <li>Tech stack: D3, TopoJSON, sql.js, Web Workers, and vanilla HTML/CSS/JS. To run, open <code>index.html</code> in a browser or serve the folder with any static server.
-        </li>
+      <p class="hero-lede">25 years of international cricket — every match, every venue, on one map.</p>
+      <ul class="hero-beats">
+        <li><strong>The format wars.</strong> Watch T20 take over the calendar — three formats, three decades, one shifting balance.</li>
+        <li><strong>Where the game lives.</strong> Every venue across every host nation, sized by how often the lights come on.</li>
+        <li><strong>The home advantage myth.</strong> Find out who really wins at home — and which grounds break the pattern.</li>
       </ul>
-      <button id="enterBtn" class="cta">Explore data</button>
+      <div class="hero-cta-row">
+        <button id="enterBtn" class="cta">Explore data</button>
+        <span class="hero-cta-hint">or click a decade below to dive in →</span>
+      </div>
+      <div id="todayHook" class="today-hook" aria-live="polite"></div>
     </div>
     <div class="hero-right" id="decadeChart" aria-label="Matches by format and decade"></div>
+    <div class="scroll-cue" aria-hidden="true">
+      <div class="scroll-cue-arrow"></div>
+      <span>scroll to explore</span>
+    </div>
   </section>
 
-  <!-- UI chrome (hidden while landing via CSS) -->
-  <button id="menuBtn" class="hamburger" aria-label="Open leaderboards" aria-expanded="false">
-     <!-- leaderboard bar-chart SVG icon (replaces hamburger) -->
-     <svg class="leaderboard-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false" role="img">
-      <rect x="3" y="10" width="4" height="11" rx="1.2"></rect>
-      <rect x="10" y="6" width="4" height="15" rx="1.2"></rect>
-      <rect x="17" y="3" width="4" height="18" rx="1.2"></rect>
-     </svg>
-  </button>
+  <!-- UI chrome: single pill toolbar (hidden on landing via CSS) -->
+  <div class="toolbar toolbar-tl surface" role="toolbar" aria-label="View controls">
+    <button id="menuBtn" class="toolbar-btn" aria-label="Open leaderboards" aria-expanded="false" title="Leaderboards">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" focusable="false">
+        <rect x="3" y="10" width="4" height="11" rx="1.2"/>
+        <rect x="10" y="6" width="4" height="15" rx="1.2"/>
+        <rect x="17" y="3" width="4" height="18" rx="1.2"/>
+      </svg>
+    </button>
+    <button id="themeToggleBtn" class="toolbar-btn" aria-label="Switch to light theme" title="Toggle theme">
+      <svg class="icon-sun" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" focusable="false">
+        <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+        <line x1="4.22" y1="4.22" x2="7.05" y2="7.05"/><line x1="16.95" y1="16.95" x2="19.78" y2="19.78"/>
+        <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="7.05" y2="16.95"/><line x1="16.95" y1="7.05" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg class="icon-moon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" focusable="false">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+    <button id="exportGlobeBtn" class="toolbar-btn" aria-label="Save map as PNG" title="Save PNG">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" focusable="false">
+        <path d="M12 16L7 11h3V5h4v6h3L12 16z"/>
+        <rect x="4" y="18" width="16" height="2" rx="1"/>
+      </svg>
+    </button>
+    <button id="h2hBtn" class="toolbar-btn" aria-label="Head-to-head comparison" title="Head-to-Head">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+        <path d="M4 12h16"/><path d="M16 8l4 4-4 4"/><path d="M8 16L4 12l4-4"/>
+      </svg>
+    </button>
+    <button id="insightsBtn" class="toolbar-btn" aria-label="Toss insights" title="Toss Insights">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+        <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>
+      </svg>
+    </button>
+  </div>
 
-  <!-- top-right view toggle (user-provided markup) + dynamic text -->
-  <div class="toggle-wrap" aria-hidden="true">
-  <div id="toggleText" class="toggle-text" aria-hidden="true">Global Cricket Insights — interactive analytics for international cricket (2000–2025). Loads local CSVs into an in-browser SQL DB, computes home win % and venue metrics, produces leaderboards, and renders choropleth, win spikes and per-venue panels. Use the control to switch 3D globe / 2D map; use the year slider to filter years; click a country to view its venues and leaderboards.</div>
-    <div class="toggle">
-      <input type="checkbox" id="btn">
-      <label for="btn">
-        <span class="thumb"></span>
+  <!-- top-right cricket ball toggle (3D ↔ 2D) -->
+  <div class="view-toggle-wrap" id="viewPill" title="3D globe active — click to switch to 2D atlas">
+    <span class="view-toggle-label view-toggle-3d">3D</span>
+    <div class="cricket-toggle">
+      <input class="cricket-toggle-input" type="checkbox" id="viewToggleBtn"
+             role="switch" aria-checked="false" aria-label="Switch between 3D globe and 2D atlas">
+      <label class="cricket-track" for="viewToggleBtn">
+        <span class="cricket-ball">
+          <svg class="ball-seam" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M7 1.5 C3.5 7 3.5 13 7 18.5"  stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M13 1.5 C16.5 7 16.5 13 13 18.5" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
       </label>
-      <div class="lights">
-        <span class="light-off"></span>
-        <span class="light-on"></span>
-      </div>
     </div>
+    <span class="view-toggle-label view-toggle-2d">2D</span>
   </div>
 
   <!-- Legend (created dynamically via D3 in map.js) -->
 
   <!-- Year range slider -->
   <section class="year-box" id="yearBox" aria-label="Years slider">
-    <div class="yr-header">
-      <span id="yearBoxValue">Years 2000–2025</span>
-      <div class="yr-header-controls">
-        <button id="playBtn" class="play-btn" aria-label="Play year-by-year">▶</button>
-        <button id="yrCollapseBtn" class="yr-collapse-btn" aria-label="Toggle year slider" aria-expanded="true">▾</button>
+    <div class="yr-row">
+      <button id="playBtn" class="play-btn" aria-label="Play year-by-year">&#9654;</button>
+      <span class="yr-end">2000</span>
+      <div class="yr-slider">
+        <div class="yr-track"></div>
+        <div class="yr-fill"></div>
+        <div class="yr-thumb left"  role="slider" aria-valuemin="2000" aria-valuemax="2025" aria-valuenow="2000" tabindex="0">
+          <div class="yr-bubble" id="yrBubbleLeft">2000</div>
+        </div>
+        <div class="yr-thumb right" role="slider" aria-valuemin="2000" aria-valuemax="2025" aria-valuenow="2025" tabindex="0">
+          <div class="yr-bubble" id="yrBubbleRight">2025</div>
+        </div>
       </div>
+      <span class="yr-end">2025</span>
+      <button id="yrCollapseBtn" class="yr-collapse-btn" aria-label="Toggle year slider" aria-expanded="true">&#9662;</button>
     </div>
-    <div class="yr-slider">
-      <div class="yr-track"></div>
-      <div class="yr-fill"></div>
-      <div class="yr-thumb left"  role="slider" aria-valuemin="2000" aria-valuemax="2025" aria-valuenow="2000" tabindex="0">
-        <div class="yr-bubble" id="yrBubbleLeft">2000</div>
-      </div>
-      <div class="yr-thumb right" role="slider" aria-valuemin="2000" aria-valuemax="2025" aria-valuenow="2025" tabindex="0">
-        <div class="yr-bubble" id="yrBubbleRight">2025</div>
-      </div>
-    </div>
+    <!-- kept for JS compat (yearSlider, exportPng) -->
+    <span id="yearBoxValue" class="yr-sr-label" aria-live="polite">Years 2000–2025</span>
   </section>
-
-  <!-- Theme toggle -->
-  <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Switch to light theme" title="Toggle theme">☀</button>
-
-  <!-- Head-to-head comparison -->
-  <button id="h2hBtn" class="export-globe-btn" aria-label="Head-to-head comparison" title="Head-to-Head" style="left:172px">🥊</button>
-
-  <!-- Toss insights (T-3.3) -->
-  <button id="insightsBtn" class="export-globe-btn" aria-label="Toss insights" title="Insights" style="left:212px">📊</button>
-
-  <!-- Insights feed toggle (T-3.7) -->
-  <button id="insightsFeedBtn" class="export-globe-btn" aria-label="Cricket insights feed" title="Insights feed" style="left:252px">
-    <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true" focusable="false">
-      <path d="M8 1a5 5 0 0 1 3.09 8.98c-.35.28-.59.7-.63 1.15L10.4 12H5.6l-.06-.87c-.04-.45-.28-.87-.63-1.15A5 5 0 0 1 8 1Zm1.5 13h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1Z"/>
-    </svg>
-  </button>
-
-  <!-- Globe / map PNG export -->
-  <button id="exportGlobeBtn" class="export-globe-btn" aria-label="Save map as PNG" title="Save PNG">
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      <path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/>
-      <rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/>
-    </svg>
-  </button>
 
   <!-- Toast -->
   <div id="loadingToast" class="toast">Loading…</div>
@@ -127,7 +138,7 @@
             <rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/>
           </svg>
         </button>
-        <button id="closeOverlay" class="icon-btn" aria-label="Close">✕</button>
+        <button id="closeOverlay" class="icon-btn" aria-label="Close">&#10005;</button>
       </div>
     </header>
     <nav class="tabs" role="tablist" aria-label="Leaderboards">
@@ -139,13 +150,9 @@
   <div id="backdrop" class="backdrop" hidden></div>
 
   <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
-  <script src="formats.js?v=t25"></script>
-  <script src="db.js?v=t25"></script>
-  <script src="venue.js?v=t25"></script>
-  <script src="tilt-toggle.js?v=t25"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js" integrity="sha384-/2HxK3kObxd3+ww+DG94zYpLU1yodAI1+vAauuriYyEXkQ+zBvXYvJPL9Ey87/lN" crossorigin="anonymous"></script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

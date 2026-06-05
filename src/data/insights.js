@@ -4,6 +4,8 @@
  */
 import { DEBUG } from '../debug.js';
 import { state } from '../state.js';
+import { DB_URL } from '../config.js';
+import { DB }    from '../db.js';
 
 const FMT_LABEL = { test: 'Tests', odi: 'ODIs', t20: 'T20Is' };
 
@@ -89,6 +91,7 @@ function busiestVenues() {
 
 function topScorers() {
   const out = [];
+  if (typeof Formats === 'undefined') return out;
   try {
     for (const fmt of ['test', 'odi', 't20']) {
       const patterns = Formats.formatLikePatterns(fmt);
@@ -123,6 +126,7 @@ function topScorers() {
 
 function topWicketTakers() {
   const out = [];
+  if (typeof Formats === 'undefined') return out;
   try {
     for (const fmt of ['test', 'odi', 't20']) {
       const patterns = Formats.formatLikePatterns(fmt);
@@ -188,7 +192,7 @@ function formatGrowth() {
 // ── Pool assembly ─────────────────────────────────────────────────────────────
 
 export async function computeInsightPool() {
-  await DB.init(window._DB_URL || './data/db/cricket.db');
+  await DB.init(DB_URL);
   return [
     ...homeDominance(),
     ...mostHosted(),

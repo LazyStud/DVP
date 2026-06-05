@@ -1,7 +1,13 @@
-/* VenueWindow: lightweight anchored popup with radar placeholder */
-(function () {
-  let svgRef, gRootRef, getProjection, getMode;
-  let panel, titleEl, badgeEl, typologyChipEl, contentEl;
+/* VenueWindow: venue detail panel with radar chart (ES module) */
+import { DEBUG } from './debug.js';
+import { normalizeFormat } from './formats.js';
+import { loadTypologyContext, classifyVenue } from './data/typology.js';
+
+function reportError(scope, err) { if (DEBUG) console.warn(`[${scope}]`, err); }
+
+let svgRef, gRootRef, getProjection, getMode;
+let _db, _getFormat, _tossStatsRef, _exportPngRef;
+let panel, titleEl, badgeEl, typologyChipEl, contentEl;
   let isOpen = false;
   let currentDatum = null;
   let _prevFocus = null;
@@ -17,7 +23,7 @@
   function ensureWorker(){
     if (_venueWorker) return;
     try{
-      _venueWorker = new Worker('venue-worker.js');
+      _venueWorker = new Worker(new URL('./venue-worker.js', import.meta.url));
       _venueWorker.onmessage = (ev) => {
         const msg = ev.data || {};
         const id = msg.id;
@@ -169,7 +175,11 @@
     <div class="venue-toss-list"></div>
   `;
 
+  const matchSummary = document.createElement('div');
+  matchSummary.className = 'venue-match-summary';
+
   contentEl.appendChild(tabBar);
+  contentEl.appendChild(matchSummary);
   contentEl.appendChild(topRow);
   contentEl.appendChild(evoWrap);
     contentEl.appendChild(info);
@@ -187,7 +197,7 @@
       btn.className = 'venue-legend-item';
       btn.setAttribute('data-format', f.key);
       btn.setAttribute('aria-pressed', 'true');
-      btn.innerHTML = `<i class="legend-dot" style="background:${f.color};box-shadow:0 2px 6px ${f.color}33;"></i><span class="venue-legend-label">${f.label}</span>`;
+      btn.innerHTML = `<i class="legend-dot" style="background:${f.color};box-shadow:0 2px 6px ${f.color}33;"></i><span class="venue-legend-label">${f.label}</span><span class="venue-legend-count"></span>`;
       btn.addEventListener('click', (_e) => {
         const fmt = btn.getAttribute('data-format');
         const pressed = btn.getAttribute('aria-pressed') === 'true';
@@ -214,6 +224,14 @@
         tabRadar.setAttribute('aria-pressed','false'); tabEvo.setAttribute('aria-pressed','true');
         radarWrap.classList.add('hidden'); evoWrap.classList.remove('hidden');
         try { legend.classList.add('hidden'); } catch(e){ reportError('nonfatal', e); }
+        // render evolution now that it's visible (deferred from fetchAndRender to avoid
+        // building ~200 SVG elements when the Radar tab is showing)
+        try {
+          const rows = panel._lastRows || [];
+          const yr = panel._lastYrRange || { min: 2000, max: 2025 };
+          const fmt = panel._lastFormat || 'all';
+          drawEvolutionHeatmap(rows, yr, fmt);
+        } catch(e) { if (DEBUG) console.warn('Evolution tab render failed', e); }
       });
 
     // Export button: saves currently-visible chart (radar or evolution) as PNG.
@@ -223,7 +241,7 @@
     exportBtn.title = 'Save PNG';
     exportBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 11.5 L3.5 7 H6.5 V2 H9.5 V7 H12.5 Z" fill="currentColor"/><rect x="2" y="13" width="12" height="1.5" rx="0.75" fill="currentColor"/></svg>';
     exportBtn.addEventListener('click', () => {
-      if (!window.exportSvgAsPng) return;
+      if (!_exportPngRef) return;
       const evoVisible = !evoWrap.classList.contains('hidden');
       const svgEl = evoVisible
         ? evoWrap.querySelector('svg[data-role="evo-heatmap"]')
@@ -239,7 +257,7 @@
       const fmt       = currentFormat === 'all' ? 'All formats' : (currentFormat || 'all').toUpperCase();
       const safeName  = venueName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
-      window.exportSvgAsPng(
+      _exportPngRef(
         svgEl,
         `cricket-${safeName}-${evoVisible ? 'evolution' : 'radar'}.png`,
         {
@@ -269,7 +287,7 @@
     // track current year range for queries and update badge
     const currentYearRange = { min: 2000, max: 2025 };
     // current format (shared between listeners)
-    let currentFormat = (window.selectedFormat || 'all');
+    let currentFormat = (_getFormat ? _getFormat() : null) || 'all';
 
     window.addEventListener("yearrange:change", (ev) => {
       const { min, max } = ev.detail || {};
@@ -291,7 +309,7 @@
 
     // react to format filter changes (published by map.js)
     window.addEventListener('format:change', (ev) => {
-      currentFormat = (ev?.detail?.format) || (window.selectedFormat || 'all');
+      currentFormat = (ev?.detail?.format) || (_getFormat ? _getFormat() : null) || 'all';
       // if panel is open, refresh metrics
       if (isOpen && currentDatum) fetchAndRender(currentDatum, currentYearRange, currentFormat);
     });
@@ -352,25 +370,35 @@
     const w = +svg.attr("width") || 280;
     const h = +svg.attr("height") || 170;
     const cx = w/2, cy = h/2, r = Math.min(w, h)/2 - 22;
-    const axes = ["Bat SR", "Bat Avg", "Boundary %", "Bowl Econ", "Bowl Avg", "Bowl SR"];
+    const axes = [
+      { label: 'Bat SR',      key: 'batting_sr',   fmt: v => String(Math.round(v)) },
+      { label: 'Bat Avg',     key: 'batting_avg',  fmt: v => v.toFixed(1) },
+      { label: 'Boundary %',  key: 'boundary_pct', fmt: v => v.toFixed(1) + '%' },
+      { label: 'Bowl Econ',   key: 'bowling_econ', fmt: v => v.toFixed(2) },
+      { label: 'Bowl Avg',    key: 'bowling_avg',  fmt: v => v.toFixed(1) },
+      { label: 'Bowl SR',     key: 'bowling_sr',   fmt: v => String(Math.round(v)) }
+    ];
     const n = axes.length;
     const g = svg.append("g").attr("transform", `translate(${cx},${cy})`);
 
     // draw concentric rings
     [0.25, 0.5, 0.75, 1].forEach(k => g.append("circle").attr("r", r*k).attr("fill", "none").attr("stroke", "rgba(231,246,239,0.12)"));
 
-    // axis lines and labels
+    // axis lines and labels — store text refs for attaching hover tooltips below
+    const axisEls = [];
     axes.forEach((a, i) => {
       const ang = (i / n) * 2 * Math.PI - Math.PI/2;
       const x = Math.cos(ang) * r, y = Math.sin(ang) * r;
       g.append("line").attr("x1",0).attr("y1",0).attr("x2",x).attr("y2",y).attr("stroke","rgba(231,246,239,0.2)");
-      g.append("text")
-        .attr("x", Math.cos(ang) * (r + 8))
-        .attr("y", Math.sin(ang) * (r + 8) + 4)
-        .attr("text-anchor", Math.cos(ang) > 0.1 ? "start" : (Math.cos(ang) < -0.1 ? "end" : "middle"))
-        .attr("font-size", 11)
-        .attr("fill", "var(--muted)")
-        .text(a);
+      axisEls.push(
+        g.append("text")
+          .attr("x", Math.cos(ang) * (r + 8))
+          .attr("y", Math.sin(ang) * (r + 8) + 4)
+          .attr("text-anchor", Math.cos(ang) > 0.1 ? "start" : (Math.cos(ang) < -0.1 ? "end" : "middle"))
+          .attr("font-size", 11)
+          .attr("fill", "var(--muted)")
+          .text(a.label)
+      );
     });
 
     // metrics may be attached via svgEl._metrics or via dataset
@@ -379,7 +407,19 @@
       try { svgEl._metrics = JSON.parse(svgEl.dataset.metrics); } catch(e){ reportError('nonfatal', e); }
     }
     const metricsByFormat = (svgEl._metrics && svgEl._metrics.byFormat) ? svgEl._metrics.byFormat : null;
+    // sync legend match counts — runs on every drawRadar call including cache hits and no-data paths
+    if (panel) {
+      ['test', 'odi', 't20'].forEach(key => {
+        const btn = panel.querySelector(`.venue-legend-item[data-format="${key}"]`);
+        const countEl = btn && btn.querySelector('.venue-legend-count');
+        if (countEl) {
+          const m = metricsByFormat && metricsByFormat[key];
+          countEl.textContent = (m && m.matches_count) ? `· ${m.matches_count}` : '';
+        }
+      });
+    }
     if (!metricsByFormat) {
+      const _s = panel && panel.querySelector('.venue-match-summary'); if (_s) _s.textContent = '';
       // placeholder polygon (semi-filled)
       const placeholder = d3.range(n).map(() => 0.6);
       const line = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
@@ -489,6 +529,7 @@
     // If there are no matches across all formats, show a neutral placeholder and
     // render labels as em-dashes to avoid implying numeric data.
     if (totalMatchesAcross === 0) {
+      const _s = panel && panel.querySelector('.venue-match-summary'); if (_s) _s.textContent = '';
       const placeholder = d3.range(n).map(() => 0.35);
       const linePh = d3.lineRadial().curve(d3.curveLinearClosed).radius(d => d * r).angle((d, i) => (i / n) * 2 * Math.PI);
       g.append("path").datum(placeholder).attr("d", linePh).attr("fill", "rgba(120,120,120,0.06)")
@@ -525,6 +566,59 @@
         .attr("text-anchor", "middle")
         .text(txt);
     });
+
+    // match count summary line: "67 matches · Test 12 · ODI 35 · T20I 20"
+    const summaryEl = panel && panel.querySelector('.venue-match-summary');
+    if (summaryEl) {
+      const fmtNameMap = { test: 'Test', odi: 'ODI', t20: 'T20I' };
+      const totalM = FORMATS.reduce((s, f) => s + ((metricsByFormat[f.key] && metricsByFormat[f.key].matches_count) || 0), 0);
+      summaryEl.textContent = '';
+      if (totalM) {
+        summaryEl.appendChild(document.createTextNode(`${totalM} matches`));
+        FORMATS.forEach(f => {
+          const m = metricsByFormat[f.key];
+          if (!m || !m.matches_count) return;
+          const sep = document.createElement('span'); sep.className = 'venue-summary-sep'; sep.textContent = ' · ';
+          summaryEl.appendChild(sep);
+          summaryEl.appendChild(document.createTextNode(`${fmtNameMap[f.key]} ${m.matches_count}`));
+        });
+      }
+    }
+
+    // per-format hover tooltips on axis labels
+    const fmtColors = { test: '#e6cf9a', odi: '#2dd4bf', t20: '#a78bfa' };
+    const fmtNames  = { test: 'Test',    odi: 'ODI',     t20: 'T20I'   };
+    axes.forEach((a, i) => {
+      axisEls[i].style('cursor', 'default').on('mouseenter', (ev) => {
+        document.querySelectorAll('.venue-axis-tip').forEach(el => el.remove());
+        const tip = document.createElement('div');
+        tip.className = 'venue-heat-tip venue-axis-tip';
+        const hdr = document.createElement('strong');
+        hdr.style.cssText = 'display:block;margin-bottom:3px';
+        hdr.textContent = a.label;
+        tip.appendChild(hdr);
+        ['test', 'odi', 't20'].forEach((k, ki) => {
+          if (ki > 0) {
+            const sep = document.createElement('span');
+            sep.style.cssText = 'margin:0 5px;color:var(--muted)';
+            sep.textContent = '·';
+            tip.appendChild(sep);
+          }
+          const dot = document.createElement('span');
+          dot.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${fmtColors[k]};margin-right:3px;vertical-align:middle`;
+          tip.appendChild(dot);
+          const m = metricsByFormat[k];
+          const val = (m && m.matches_count && m[a.key] != null) ? a.fmt(+m[a.key]) : '—';
+          tip.appendChild(document.createTextNode(`${fmtNames[k]} ${val}`));
+        });
+        document.body.appendChild(tip);
+        const bbox = ev.target.getBoundingClientRect();
+        tip.style.left = `${bbox.right + 8}px`;
+        tip.style.top  = `${bbox.top - 4}px`;
+      }).on('mouseleave', () => {
+        document.querySelectorAll('.venue-axis-tip').forEach(el => el.remove());
+      });
+    });
   }
 
   // Trajectory charts (multi-line mini-charts) were removed by request.
@@ -549,7 +643,7 @@
 
   // fetch aggregated metrics for a venue + year range + format and render radar + textual summaries
   async function fetchAndRender(datum, yrRange = {min:2000,max:2025}, format = 'all'){
-    format = Formats.normalizeFormat(format);
+    format = normalizeFormat(format);
     const svgEl = panel.querySelector('svg[data-role="radar"]');
     if (!svgEl) return;
     const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
@@ -577,15 +671,15 @@
       drawRadar(svgEl);
       // restore raw rows so Evolution tab and format buttons work
       try { panel._lastRows = cached.rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
-      try { drawEvolutionHeatmap(cached.rows, yrRange, format); } catch(e){ if (DEBUG) console.warn('evolution draw (cache) failed', e); }
+      try { if (!panel.querySelector('.venue-evolution')?.classList.contains('hidden')) drawEvolutionHeatmap(cached.rows, yrRange, format); } catch(e){ if (DEBUG) console.warn('evolution draw (cache) failed', e); }
       if (loadingOverlay) loadingOverlay.style.display = 'none';
       try {
-        if (window.Typology && typologyChipEl) {
-          const ctx = await window.Typology.loadContext();
+        if (typologyChipEl) {
+          const ctx = await loadTypologyContext(_db);
           const bf = (cached.metrics && cached.metrics.byFormat) || {};
           const fmtKey = (format === 'all') ? pickDominantFormat(bf) : format;
           const m = bf[fmtKey];
-          renderTypologyChip(m ? window.Typology.classify(
+          renderTypologyChip(m ? classifyVenue(
             { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
               bowling_avg: m.bowling_avg, matches_count: m.matches_count },
             fmtKey, ctx) : null);
@@ -612,7 +706,7 @@
       const sqlParams = [yrRange.min, yrRange.max, ...aliasLikes.map(x => x), ...(format && format !== 'all' ? [`%${format}%`] : [])];
       let rows = [];
       try {
-        rows = DB.queryAll(sql, sqlParams) || [];
+        rows = _db.queryAll(sql, sqlParams) || [];
       } catch (e) {
         if (DEBUG) console.warn('venue_stats query failed', e);
         rows = [];
@@ -643,7 +737,7 @@
           WHERE CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? AND (${likeExpr})
           GROUP BY LOWER(COALESCE(m.format,''))`;
 
-          const batRows = DB.queryAll(batSql, paramsBase) || [];
+          const batRows = _db.queryAll(batSql, paramsBase) || [];
 
           // Batting innings-by-number (for radar tooltip/innings_by_no)
           const innSql = `SELECT LOWER(COALESCE(m.format,'')) AS format,
@@ -656,7 +750,7 @@
           GROUP BY LOWER(COALESCE(m.format,'')), innings_no
           ORDER BY LOWER(COALESCE(m.format,'')), innings_no`;
 
-          const innRows = DB.queryAll(innSql, paramsBase) || [];
+          const innRows = _db.queryAll(innSql, paramsBase) || [];
 
           // Bowling aggregates per-format
           const bowlSql = `SELECT LOWER(COALESCE(m.format,'')) AS format,
@@ -671,7 +765,7 @@
           WHERE CAST(substr(m.date,1,4) AS INT) BETWEEN ? AND ? AND (${likeExpr})
           GROUP BY LOWER(COALESCE(m.format,''))`;
 
-          const bowlRows = DB.queryAll(bowlSql, paramsBase) || [];
+          const bowlRows = _db.queryAll(bowlSql, paramsBase) || [];
 
           // Organize results by format and synthesize rows similar to venue_stats
           const batMap = Object.create(null);
@@ -710,12 +804,14 @@
 
   // store last fetched rows so Evolution controls can re-render without re-query
   try { panel._lastRows = rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
-  // Draw evolution heatmap from raw rows for the selected yrRange and format
-  try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { if (DEBUG) console.warn('evolution draw failed', e); }
+  // Only render evolution heatmap if its tab is currently visible; otherwise the tab
+  // click handler will render it on demand (avoids building ~200 SVG elements while
+  // Radar tab is showing, which was causing globe rendering lag).
+  try { if (!panel.querySelector('.venue-evolution')?.classList.contains('hidden')) drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { if (DEBUG) console.warn('evolution draw failed', e); }
 
       // Group rows by normalized format key and aggregate sums
       const byFormat = { test: null, odi: null, t20: null };
-      const normFormat = (s) => { const k = Formats.normalizeFormat(s); return k === 'all' ? 'other' : k; };
+      const normFormat = (s) => { const k = normalizeFormat(s); return k === 'all' ? 'other' : k; };
 
       const groups = {};
       for (const r of rows) {
@@ -779,7 +875,7 @@
         const fb = panel._fallback_innings || null;
         if (fb) {
           Object.keys(fb).forEach(k => {
-            const _nk = Formats.normalizeFormat(k); const norm = _nk === 'all' ? null : _nk;
+            const _nk = normalizeFormat(k); const norm = _nk === 'all' ? null : _nk;
             if (!norm) return;
             if (byFormat[norm]) byFormat[norm].innings_by_no = (fb[k] || []).map(x => ({ innings_no: x.innings_no, avg_runs: Number(x.avg_runs || 0), count: Number(x.cnt || 0) }));
           });
@@ -812,8 +908,8 @@
 
       // ── Toss impact card (T-3.3) ────────────────────────────────────────────
       try {
-        if (window.__getVenueTossStats) {
-          const tossData = await window.__getVenueTossStats(aliases, yrRange, format);
+        if (_tossStatsRef) {
+          const tossData = await _tossStatsRef(aliases, yrRange, format);
           const tossList = panel.querySelector('.venue-toss-list');
           if (tossList && tossData && tossData.byFormat) {
             tossList.innerHTML = '';
@@ -849,11 +945,11 @@
 
       // ── Typology chip (T-3.4) ───────────────────────────────────────────────
       try {
-        if (window.Typology && typologyChipEl) {
-          const ctx = await window.Typology.loadContext();
+        if (typologyChipEl) {
+          const ctx = await loadTypologyContext(_db);
           const fmtKey = (format === 'all') ? pickDominantFormat(byFormat) : format;
           const m = byFormat[fmtKey];
-          renderTypologyChip(m ? window.Typology.classify(
+          renderTypologyChip(m ? classifyVenue(
             { batting_sr: m.batting_sr, boundary_pct: m.boundary_pct,
               bowling_avg: m.bowling_avg, matches_count: m.matches_count },
             fmtKey, ctx) : null);
@@ -975,21 +1071,46 @@
       const cellW = Math.max(12, Math.floor(iw / Math.max(1, years.length)));
       const cellH = Math.max(18, Math.floor(ih / metrics.length));
 
-      // draw grid
-      g.append('g').attr('class','heat-rows');
+      // empty state when no rows match the current format filter
+      if (!usedRows.length) {
+        const totalH = metrics.length * cellH;
+        const ovG = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+        ovG.append('rect').attr('x', 0).attr('y', 0).attr('width', iw).attr('height', totalH).attr('fill', 'rgba(0,0,0,0.18)').attr('rx', 4);
+        ovG.append('text').attr('x', iw / 2).attr('y', totalH / 2 + 5).attr('text-anchor', 'middle').attr('font-size', 13).attr('fill', 'var(--muted)').text('No matches in this period');
+        return;
+      }
+
+      // column background rects — one per year, highlighted together with the row on cell hover
+      const colBgs = years.map((_, ci) =>
+        g.append('rect')
+          .attr('x', ci * cellW).attr('y', 0)
+          .attr('width', cellW - 1).attr('height', metrics.length * cellH)
+          .attr('fill', 'none').attr('pointer-events', 'none')
+      );
+
+      // draw grid — one <g> per row so a background rect can highlight the whole row on hover
       metrics.forEach((m, ri) => {
-        const y = ri * cellH;
+        const rowY = ri * cellH;
+        const rowG = g.append('g').attr('class', 'heat-row');
+
+        // full-width transparent rect; fills on any cell hover to aid row tracking
+        const rowBg = rowG.append('rect')
+          .attr('x', -(margin.left - 12)).attr('y', rowY - 1)
+          .attr('width', (margin.left - 12) + years.length * cellW).attr('height', cellH + 1)
+          .attr('rx', 2).attr('fill', 'none').attr('pointer-events', 'none');
+
         // metric label
-        g.append('text').attr('x', -10).attr('y', y + cellH/2 + 4).attr('text-anchor','end').attr('font-size',11).attr('fill','var(--muted)').text(m.label);
-        const rowVals = matrix[ri];
-        rowVals.forEach((v, ci) => {
+        rowG.append('text').attr('x', -10).attr('y', rowY + cellH/2 + 4).attr('text-anchor','end').attr('font-size',11).attr('fill','var(--muted)').text(m.label);
+
+        matrix[ri].forEach((v, ci) => {
           const x = ci * cellW;
-          const cell = g.append('rect').attr('x', x).attr('y', y).attr('width', cellW-1).attr('height', cellH-2).attr('rx',2).attr('ry',2)
+          const cell = rowG.append('rect').attr('x', x).attr('y', rowY).attr('width', cellW-1).attr('height', cellH-2).attr('rx',2).attr('ry',2)
             .style('stroke','rgba(0,0,0,0.06)').style('stroke-width',0.5)
             .style('fill', v==null ? '#efefef' : (colorScales[ri] ? colorScales[ri](v) : '#ddd'));
-          // tooltip
           if (v != null){
             cell.on('mouseenter', (ev) => {
+              rowBg.attr('fill', 'rgba(255,255,255,0.07)');
+              colBgs[ci].attr('fill', 'rgba(255,255,255,0.05)');
               document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove());
               const tip = document.createElement('div');
               tip.className = 'venue-heat-tip';
@@ -997,7 +1118,11 @@
               document.body.appendChild(tip);
               const rect = ev.target.getBoundingClientRect();
               tip.style.left = `${rect.right + 8}px`; tip.style.top = `${rect.top}px`;
-            }).on('mouseleave', () => { document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove()); });
+            }).on('mouseleave', () => {
+              rowBg.attr('fill', 'none');
+              colBgs[ci].attr('fill', 'none');
+              document.querySelectorAll('.venue-heat-tip').forEach(el => el.remove());
+            });
           }
         });
       });
@@ -1016,10 +1141,15 @@
   }
 
   /* API */
-  function init({ svg, gRoot, projectionRef, modeRef }){
+  function init({ svg, gRoot, projectionRef, modeRef, formatRef, db, tossStatsRef, tossBiasRef: _tossBiasRef, exportPngRef }){
     svgRef = svg; gRootRef = gRoot;
     getProjection = projectionRef;
     getMode = modeRef;
+    _getFormat = formatRef;
+    _db = db;
+    _tossStatsRef = tossStatsRef;
+    _exportPngRef = exportPngRef;
+    void _tossBiasRef; // accepted for API symmetry; insights.js imports getVenueTossBias directly
     ensurePanel();
   }
 
@@ -1084,7 +1214,7 @@
         const m = yr.match(/(\d{4})\s*[–-]\s*(\d{4})/);
         if (m) { min = +m[1]; max = +m[2]; }
       }catch(e){ reportError('nonfatal', e); }
-      const fmt = window.selectedFormat || 'all';
+      const fmt = (_getFormat ? _getFormat() : null) || 'all';
       // fetch DB metrics and render radar
       // show immediate per-panel loading overlay while fetching
       const radarWrap = panel.querySelector('div > svg[data-role="radar"]')?.parentNode || null;
@@ -1137,5 +1267,4 @@
     placeAtDatum(currentDatum);
   }
 
-  window.VenueWindow = { init, open, close, reposition, isOpen: () => isOpen };
-})();
+export const VenueWindow = { init, open, close, reposition, isOpen: () => isOpen };

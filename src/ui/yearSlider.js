@@ -27,8 +27,8 @@ function render(emit = true) {
   const yearToX    = d3.scaleLinear().domain([YEAR_MIN, YEAR_MAX]).range([0, W]);
 
   if (vL > vR) [vL, vR] = [vR, vL];
-  vL = clamp(Math.round(vL), YEAR_MIN, YEAR_MAX);
-  vR = clamp(Math.round(vR), YEAR_MIN, YEAR_MAX);
+  vL = clamp(vL, YEAR_MIN, YEAR_MAX);
+  vR = clamp(vR, YEAR_MIN, YEAR_MAX);
 
   const xL = yearToX(vL), xR = yearToX(vR);
   yrFill.style.left   = `${trackLeft + xL}px`;
@@ -107,7 +107,7 @@ export function initYearBox(recomputeOnly) {
   const dragLeft = d3.drag()
     .on('start', function () {
       yearBox.classList.add('dragging');
-      try { d3.select(this).raise(); } catch (_) {}
+      try { d3.select(this).raise(); } catch (_) { /* empty */ }
       d3.select(this).classed('active', true);
     })
     .on('drag', event => {
@@ -115,15 +115,20 @@ export function initYearBox(recomputeOnly) {
       const [px]  = d3.pointer(event, yrTrack);
       const yearToX = d3.scaleLinear().domain([YEAR_MIN, YEAR_MAX]).range([0, W]);
       const xToYear = d3.scaleLinear().domain([0, W]).range([YEAR_MIN, YEAR_MAX]);
-      vL = Math.round(xToYear(clamp(clamp(px, 0, W), 0, yearToX(vR))));
+      vL = xToYear(clamp(px, 0, yearToX(vR)));
       render();
     })
-    .on('end', function () { yearBox.classList.remove('dragging'); d3.select(this).classed('active', false); });
+    .on('end', function () {
+      yearBox.classList.remove('dragging');
+      d3.select(this).classed('active', false);
+      vL = Math.round(vL);
+      render();
+    });
 
   const dragRight = d3.drag()
     .on('start', function () {
       yearBox.classList.add('dragging');
-      try { d3.select(this).raise(); } catch (_) {}
+      try { d3.select(this).raise(); } catch (_) { /* empty */ }
       d3.select(this).classed('active', true);
     })
     .on('drag', event => {
@@ -131,10 +136,15 @@ export function initYearBox(recomputeOnly) {
       const [px]  = d3.pointer(event, yrTrack);
       const yearToX = d3.scaleLinear().domain([YEAR_MIN, YEAR_MAX]).range([0, W]);
       const xToYear = d3.scaleLinear().domain([0, W]).range([YEAR_MIN, YEAR_MAX]);
-      vR = Math.round(xToYear(clamp(clamp(px, 0, W), yearToX(vL), W)));
+      vR = xToYear(clamp(px, yearToX(vL), W));
       render();
     })
-    .on('end', function () { yearBox.classList.remove('dragging'); d3.select(this).classed('active', false); });
+    .on('end', function () {
+      yearBox.classList.remove('dragging');
+      d3.select(this).classed('active', false);
+      vR = Math.round(vR);
+      render();
+    });
 
   d3.select(yrThumbL).call(dragLeft);
   d3.select(yrThumbR).call(dragRight);
