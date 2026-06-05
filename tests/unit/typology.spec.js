@@ -61,6 +61,14 @@ describe('classifyVenue', () => {
     expect(t.key).toBe('batting');
   });
 
+  it('returns null when a metric value is null (pctRank short-circuit)', () => {
+    const ctx = makeCtx();
+    expect(classifyVenue(
+      { batting_sr: null, boundary_pct: 5, bowling_avg: 5, matches_count: 20 },
+      'test', ctx
+    )).toBeNull();
+  });
+
   it('returns null when context bucket has fewer than 5 entries', () => {
     const tinyBucket = { sr: [1, 2, 3], bp: [1, 2, 3], bavg: [1, 2, 3] };
     const ctx = { test: tinyBucket, all: tinyBucket };
@@ -105,5 +113,50 @@ describe('loadTypologyContext', () => {
     const countAfterFirst = callCount;
     await loadTypologyContext(DB);
     expect(callCount).toBe(countAfterFirst); // second call must not re-query DB
+  });
+
+  it('normalises t20/t20i formats into the t20 bucket and unknown formats into all', async () => {
+    const rows = [
+      { v: 'a', f: 't20',     m: 20, sr: 80, bp: 30, bavg: 25 },
+      { v: 'b', f: 't20i',    m: 15, sr: 60, bp: 20, bavg: 30 },
+      { v: 'c', f: 'unknown', m: 10, sr: 50, bp: 15, bavg: 28 },
+    ];
+    const db = { queryAll: () => rows };
+    const ctx = await loadTypologyContext(db);
+    expect(ctx.t20.sr).toContain(80);
+    expect(ctx.t20.sr).toContain(60);
+    expect(ctx.all.sr).toContain(50);
+  });
+
+  it('maps row names aliases to the canonical venue name', async () => {
+    const db = {
+      queryAll: (sql) => {
+        if (sql.includes('FROM venues')) {
+          return [{ venue: 'Eden Gardens', names: 'calcutta;kolkata' }];
+        }
+        return [{ v: 'kolkata', f: 'test', m: 20, sr: 80, bp: 30, bavg: 25 }];
+      },
+    };
+    const ctx = await loadTypologyContext(db);
+    expect(ctx.test.sr).toContain(80);
+  });
+
+  it('skips aggregated rows where total matches is below 10', async () => {
+    const rows = [{ v: 'a', f: 'test', m: undefined, sr: 80, bp: 30, bavg: 25 }];
+    const db = { queryAll: () => rows };
+    const ctx = await loadTypologyContext(db);
+    expect(ctx.test.sr).toEqual([]);
+  });
+
+  it('accumulates weighted stats when two rows share the same canonical venue and format', async () => {
+    const rows = [
+      { v: 'lords', f: 'test', m: 10, sr: 80, bp: 30, bavg: 25 },
+      { v: 'lords', f: 'test', m: 15, sr: 70, bp: 20, bavg: 28 },
+    ];
+    const db = { queryAll: () => rows };
+    const ctx = await loadTypologyContext(db);
+    // Weighted average: (80*10 + 70*15) / 25 = 74
+    expect(ctx.test.sr).toHaveLength(1);
+    expect(ctx.test.sr[0]).toBeCloseTo(74, 0);
   });
 });

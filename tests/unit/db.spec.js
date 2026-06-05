@@ -84,6 +84,19 @@ describe('src/db.js — DB API', () => {
     ).rejects.toThrow();
   });
 
+  it('passes a locateFile callback to initSqlJs that returns a CDN URL', async () => {
+    let capturedOpts;
+    vi.stubGlobal('initSqlJs', vi.fn().mockImplementation(async (opts) => {
+      capturedOpts = opts;
+      return makeSqlMock();
+    }));
+    await DB.init('./fake.db', { version: 'v-locatefile' });
+    expect(typeof capturedOpts.locateFile).toBe('function');
+    const url = capturedOpts.locateFile('sql-wasm.js');
+    expect(url).toContain('sql-wasm.js');
+    expect(url).toMatch(/^https:\/\//);
+  });
+
   it('clearCache removes keys matching the given prefix', async () => {
     await DB.init('./fake.db', { version: 'v-clear' });
 
