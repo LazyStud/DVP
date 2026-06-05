@@ -23,10 +23,10 @@ export default defineConfig({
       // Most of src/ui/ and src/data/queries.js are DOM/SQL templates with near-0%
       // coverage, which keeps the aggregate low even after excluding rendering layers.
       thresholds: {
-        lines: 11,
-        functions: 13,
-        branches: 12,
-        statements: 11,
+        lines: 21,
+        functions: 23,
+        branches: 20,
+        statements: 21,
       },
     },
   },
