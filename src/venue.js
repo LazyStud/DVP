@@ -224,6 +224,14 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
         tabRadar.setAttribute('aria-pressed','false'); tabEvo.setAttribute('aria-pressed','true');
         radarWrap.classList.add('hidden'); evoWrap.classList.remove('hidden');
         try { legend.classList.add('hidden'); } catch(e){ reportError('nonfatal', e); }
+        // render evolution now that it's visible (deferred from fetchAndRender to avoid
+        // building ~200 SVG elements when the Radar tab is showing)
+        try {
+          const rows = panel._lastRows || [];
+          const yr = panel._lastYrRange || { min: 2000, max: 2025 };
+          const fmt = panel._lastFormat || 'all';
+          drawEvolutionHeatmap(rows, yr, fmt);
+        } catch(e) { if (DEBUG) console.warn('Evolution tab render failed', e); }
       });
 
     // Export button: saves currently-visible chart (radar or evolution) as PNG.
@@ -663,7 +671,7 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
       drawRadar(svgEl);
       // restore raw rows so Evolution tab and format buttons work
       try { panel._lastRows = cached.rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
-      try { drawEvolutionHeatmap(cached.rows, yrRange, format); } catch(e){ if (DEBUG) console.warn('evolution draw (cache) failed', e); }
+      try { if (!panel.querySelector('.venue-evolution')?.classList.contains('hidden')) drawEvolutionHeatmap(cached.rows, yrRange, format); } catch(e){ if (DEBUG) console.warn('evolution draw (cache) failed', e); }
       if (loadingOverlay) loadingOverlay.style.display = 'none';
       try {
         if (typologyChipEl) {
@@ -796,8 +804,10 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
 
   // store last fetched rows so Evolution controls can re-render without re-query
   try { panel._lastRows = rows; panel._lastYrRange = yrRange; panel._lastFormat = format; } catch(e){ reportError('nonfatal', e); }
-  // Draw evolution heatmap from raw rows for the selected yrRange and format
-  try { drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { if (DEBUG) console.warn('evolution draw failed', e); }
+  // Only render evolution heatmap if its tab is currently visible; otherwise the tab
+  // click handler will render it on demand (avoids building ~200 SVG elements while
+  // Radar tab is showing, which was causing globe rendering lag).
+  try { if (!panel.querySelector('.venue-evolution')?.classList.contains('hidden')) drawEvolutionHeatmap(rows, yrRange, format); } catch(e) { if (DEBUG) console.warn('evolution draw failed', e); }
 
       // Group rows by normalized format key and aggregate sums
       const byFormat = { test: null, odi: null, t20: null };
