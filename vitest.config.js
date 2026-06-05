@@ -18,7 +18,7 @@ export default defineConfig({
         'src/venue-worker.js',
         'src/debug.js',
       ],
-      reporter: ['text', 'lcov', 'html'],
+      reporter: ['text', 'lcov', 'html', 'json-summary'],
       // Regression floor set at current levels — raise as test coverage improves.
       // Most of src/ui/ and src/data/queries.js are DOM/SQL templates with near-0%
       // coverage, which keeps the aggregate low even after excluding rendering layers.
