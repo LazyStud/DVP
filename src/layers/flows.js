@@ -6,6 +6,7 @@ import { handleCountryClick }             from './venues.js';
 // ── Draw / update ────────────────────────────────────────────────────────────
 
 export function drawFlowArcs() {
+  if (state.mode === 'globe') return; // rendered by deck.gl
   if (!state.flowVisible) { state.gFlowArcs.selectAll('path.flow').remove(); return; }
 
   const data = state.flowData.filter(d => {
@@ -59,6 +60,7 @@ export function drawFlowArcs() {
 }
 
 export function updateFlowPositions() {
+  if (state.mode === 'globe') return; // rendered by deck.gl
   if (!state.flowVisible) {
     try { state.gFlowArcs.selectAll('path.flow').style('display', 'none'); } catch (_) { /* empty */ }
     return;

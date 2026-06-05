@@ -55,6 +55,7 @@ export function applyChoropleth() {
 }
 
 export function updateHoverTransform() {
+  if (state.mode === 'globe') return; // hover handled by deck.gl autoHighlight
   state.gCountries.selectAll('path.country').each(function (d) {
     const sel = d3.select(this);
     if (state.hoveredId && d.id === state.hoveredId) {

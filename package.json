@@ -7,6 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "smoke": "node tests/smoke.mjs",
     "lint": "eslint *.js",
@@ -21,6 +22,7 @@
   "type": "module",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.8",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "fake-indexeddb": "^6.2.5",
@@ -34,6 +36,9 @@
     "wait-on": "^9.0.10"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.3.3",
+    "@deck.gl/geo-layers": "^9.3.3",
+    "@deck.gl/layers": "^9.3.3",
     "fuse.js": "^7.3.0"
   }
 }

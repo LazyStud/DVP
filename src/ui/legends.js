@@ -88,6 +88,7 @@ export function setupFormatUI() {
     applyChoropleth();
     drawSpikes();
     renderSpikeLegend(maxMatches);
+    if (state.mode === 'globe') state.rebuildGlobeLayers?.();
   }));
 
   const initGrad = document.querySelector('.legend-gradbar');

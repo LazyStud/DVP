@@ -380,11 +380,8 @@ body.landing #globe {
   right: 48px;
   top: 50%;
   transform: translateY(-50%);
-  width: min(52vw, 720px);
-  height: min(52vw, 720px);
-  border-radius: 50%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-  overflow: hidden;
+  width: min(55vw, 900px);
+  height: min(55vw, 900px);
   z-index: 4;
 }
 
