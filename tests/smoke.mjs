@@ -67,11 +67,12 @@ ok('globe still visible after transition', await page.locator('#globe').isVisibl
 console.log('\n3. Choropleth / spikes');
 await page.waitForTimeout(3500);   // DB init + draw
 
-const spikes   = await page.locator('#globe svg line').count();
-const paths    = await page.locator('#globe svg path').count();
-const hasVenue = await page.locator('#globe svg path.has-venues').count();
+// Spikes are rendered by deck.gl onto a <canvas> in globe mode — no SVG lines.
+const deckCanvases = await page.locator('#globe canvas').count();
+const paths        = await page.locator('#globe svg path').count();
+const hasVenue     = await page.locator('#globe svg path.has-venues').count();
 
-ok(`spike <line> elements rendered (got ${spikes})`,   spikes > 0);
+ok(`deck.gl canvas present (spikes via deck.gl, got ${deckCanvases})`, deckCanvases > 0);
 ok(`country <path> elements rendered (got ${paths})`,  paths  > 10);
 ok(`has-venues countries present (got ${hasVenue})`,   hasVenue > 0);
 
@@ -113,6 +114,15 @@ ok('#venue-window created in DOM',    venueWindowPresent);
 
 // ── 6. Leaderboard overlay ───────────────────────────────────────────────────
 console.log('\n6. Leaderboard overlay');
+// Dismiss venue window first — it sits at z-index var(--z-popup)=150, above the
+// overlay at var(--z-overlay)=100, which would intercept close-button clicks.
+try {
+  const venueClose = page.locator('#venue-window .venue-close');
+  if (await venueClose.isVisible({ timeout: 300 })) {
+    await venueClose.click();
+    await page.waitForTimeout(300);
+  }
+} catch (_) { /* venue window already closed */ }
 await page.locator('#menuBtn').click();
 await page.waitForTimeout(600);
 
