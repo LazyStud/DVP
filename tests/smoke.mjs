@@ -141,8 +141,13 @@ if (overlayVisible) {
   // Use Escape — deck.gl controller installs document-level pointer capture listeners
   // that intercept CDP mouse events even with force:true; keyboard events are unaffected.
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(400);  // 180 ms animation + buffer
-  const overlayClosed = await page.evaluate(() => document.getElementById('leaderboardOverlay')?.hidden === true);
+  // closeOverlay() flips `hidden` via a 180 ms setTimeout that competes with synchronous
+  // sql.js queries / deck.gl work on the main thread, so it can land past a fixed wait
+  // under load. Poll for the end state (matches the landing-transition pattern above).
+  const overlayClosed = await page.waitForFunction(
+    () => document.getElementById('leaderboardOverlay')?.hidden === true,
+    { timeout: 2000 }
+  ).then(() => true).catch(() => false);
   ok('overlay closes', overlayClosed);
 }
 
