@@ -282,8 +282,10 @@ let panel, titleEl, badgeEl, typologyChipEl, contentEl;
     panel.addEventListener("pointerdown", e => e.stopPropagation());
     // outside click closes
     document.addEventListener("pointerdown", (e) => { if (isOpen && !panel.contains(e.target)) close(); });
-    // ESC closes
-    window.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+    // ESC closes (only when open — matches the outside-click guard above and the
+    // isOpen checks in headToHead/insights/playerWindow; avoids running close() and
+    // touching the shared #backdrop on every Escape press).
+    window.addEventListener("keydown", (e) => { if (e.key === "Escape" && isOpen) close(); });
     // track current year range for queries and update badge
     const currentYearRange = { min: 2000, max: 2025 };
     // current format (shared between listeners)
