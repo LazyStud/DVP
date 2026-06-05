@@ -138,7 +138,9 @@ if (overlayVisible) {
   const bowlingRows = await page.locator('#tabpanel tr').count();
   ok(`bowling tab has rows (got ${bowlingRows})`, bowlingRows > 0);
 
-  await page.locator('#closeOverlay').click({ force: true });
+  // Use Escape — deck.gl controller installs document-level pointer capture listeners
+  // that intercept CDP mouse events even with force:true; keyboard events are unaffected.
+  await page.keyboard.press('Escape');
   await page.waitForTimeout(400);  // 180 ms animation + buffer
   const overlayClosed = await page.evaluate(() => document.getElementById('leaderboardOverlay')?.hidden === true);
   ok('overlay closes', overlayClosed);
