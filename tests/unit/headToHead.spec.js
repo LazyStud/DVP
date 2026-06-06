@@ -265,6 +265,23 @@ describe('keyboard / dismissal', () => {
   });
 });
 
+// ── bigWinRow null-date branch ────────────────────────────────────────────────
+
+describe('bigWinRow — null date', () => {
+  it('renders empty date string when win.date is null', async () => {
+    getHeadToHeadBiggestWins.mockResolvedValue({
+      bestA: [{ winner: 'Australia', result: 'runs', margin: 100, date: null, venue: 'MCG' }],
+      bestB: [],
+    });
+    open();
+    document.querySelector('.h2h-go-btn')?.click();
+    await Promise.resolve(); await Promise.resolve();
+    const content = document.querySelector('.h2h-content')?.innerHTML || '';
+    expect(content).toContain('MCG');
+    expect(content).toContain('by 100 runs');
+  });
+});
+
 // ── esc() helper (XSS escape via renderResults) ──────────────────────────────
 
 describe('esc() HTML escaping', () => {

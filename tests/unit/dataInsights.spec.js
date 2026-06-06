@@ -9,6 +9,12 @@ vi.mock('../../src/db.js',     () => ({
   DB: { init: vi.fn().mockResolvedValue(undefined), queryAll: vi.fn() },
 }));
 
+// Stub the CDN-global Formats so topScorers/topWicketTakers proceed past the
+// typeof check and hit their DB.queryAll branches.
+vi.stubGlobal('Formats', {
+  formatLikePatterns: vi.fn(fmt => fmt === 'all' ? [] : [`%${fmt}%`]),
+});
+
 import { computeInsightPool, pickFive } from '../../src/data/insights.js';
 import { state }                        from '../../src/state.js';
 import { DB }                           from '../../src/db.js';
@@ -179,5 +185,87 @@ describe('computeInsightPool — empty choro', () => {
     const pool = await computeInsightPool();
     expect(Array.isArray(pool)).toBe(true);
     expect(pool.filter(x => x.category === 'home')).toHaveLength(0);
+  });
+});
+
+// ── computeInsightPool — topScorers (Formats stub active) ────────────────────
+
+describe('computeInsightPool — topScorers', () => {
+  it('adds batting insights when DB returns scorer rows', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('batting_innings') && sql.includes('total_runs'))
+        return [{ player: 'V Kohli', total_runs: 8000 }];
+      return [];
+    });
+    const pool = await computeInsightPool();
+    expect(pool.some(x => x.category === 'batting')).toBe(true);
+  });
+
+  it('skips format when formatLikePatterns returns [] (all format)', async () => {
+    // Formats.formatLikePatterns('all') → [] → patterns.length === 0 → continue
+    // The stub already does this. Just verify no throw.
+    const pool = await computeInsightPool();
+    expect(Array.isArray(pool)).toBe(true);
+  });
+
+  it('handles DB error inside topScorers silently', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('batting_innings')) throw new Error('db fail');
+      return [];
+    });
+    const pool = await computeInsightPool();
+    expect(Array.isArray(pool)).toBe(true);
+  });
+
+  it('text contains player name and format label', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('batting_innings') && sql.includes('total_runs'))
+        return [{ player: 'Sachin Tendulkar', total_runs: 12000 }];
+      return [];
+    });
+    const pool = await computeInsightPool();
+    const item = pool.find(x => x.category === 'batting');
+    expect(item?.text).toContain('Sachin Tendulkar');
+  });
+});
+
+// ── computeInsightPool — topWicketTakers (Formats stub active) ───────────────
+
+describe('computeInsightPool — topWicketTakers', () => {
+  it('adds bowling insights when DB returns wicket-taker rows', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('bowling_innings') && sql.includes('total_wkts'))
+        return [{ player: 'S Warne', total_wkts: 700 }];
+      return [];
+    });
+    const pool = await computeInsightPool();
+    expect(pool.some(x => x.category === 'bowling')).toBe(true);
+  });
+
+  it('does not add bowling insight when rows empty', async () => {
+    DB.queryAll.mockImplementation(() => []);
+    const pool = await computeInsightPool();
+    expect(pool.some(x => x.category === 'bowling')).toBe(false);
+  });
+
+  it('handles DB error inside topWicketTakers silently', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('bowling_innings')) throw new Error('db fail');
+      return [];
+    });
+    const pool = await computeInsightPool();
+    expect(Array.isArray(pool)).toBe(true);
+  });
+
+  it('text contains player name and wicket count', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('bowling_innings') && sql.includes('total_wkts'))
+        return [{ player: 'M Muralitharan', total_wkts: 800 }];
+      return [];
+    });
+    const pool = await computeInsightPool();
+    const item = pool.find(x => x.category === 'bowling');
+    expect(item?.text).toContain('M Muralitharan');
+    expect(item?.text).toContain('800');
   });
 });

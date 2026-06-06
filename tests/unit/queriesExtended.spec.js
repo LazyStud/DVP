@@ -15,9 +15,9 @@ vi.mock('../../src/db.js', () => ({
 import {
   matchView, loadMatchTables,
   getBattingLeaderboard, getBowlingLeaderboard,
-  loadVenuesForCountry,
+  loadVenueCountries, loadVenuesForCountry,
   getHeadToHeadStats, getHeadToHeadBiggestWins, getHeadToHeadTopPlayers,
-  getVenueTossBias,
+  getVenueTossStats, getVenueTossBias,
   getAllSearchVenues, getAllSearchPlayers,
   getPlayerYearBatting, getPlayerFormatBatting, getPlayerTopVenues,
   getPlayerYearBowling, getPlayerFormatBowling, getPlayerTopVenuesBowling,
@@ -458,5 +458,161 @@ describe('getPlayerFormatBowling', () => {
 describe('getPlayerTopVenuesBowling', () => {
   it('returns [] when DB returns []', async () => {
     expect(await getPlayerTopVenuesBowling('P Cummins', 2000, 2025)).toEqual([]);
+  });
+});
+
+// ── getBowlingLeaderboard ─────────────────────────────────────────────────────
+
+describe('getBowlingLeaderboard', () => {
+  it('returns empty array when DB returns []', async () => {
+    const result = await getBowlingLeaderboard(2000, 2025);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns null when main DB query returns null', async () => {
+    DB.queryAll.mockImplementationOnce(() => null);
+    const result = await getBowlingLeaderboard(2000, 2025);
+    expect(result).toBeNull();
+  });
+
+  it('maps rows with eco/avg/best using else-branch (all format)', async () => {
+    DB.queryAll
+      .mockImplementationOnce(() => [
+        { player: 'S Warne', team: 'AUS', matches: 30, wkts: 150,
+          runs_conceded: 2800, balls: 4200, five_wkts: 12, best_wkts: 7 },
+      ])
+      .mockImplementationOnce(() => [{ runs: 45 }]);
+    const result = await getBowlingLeaderboard(2000, 2025);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ player: 'S Warne', team: 'AUS', wkts: 150, five_wkts: 12 });
+    expect(result[0].best).toBe('7/45');
+    expect(result[0].eco).toBeGreaterThan(0);
+    expect(result[0].avg).toBeGreaterThan(0);
+  });
+
+  it('maps rows with correct best using if-branch (specific format)', async () => {
+    DB.queryAll
+      .mockImplementationOnce(() => [
+        { player: 'M Muralitharan', team: 'SL', matches: 25, wkts: 100,
+          runs_conceded: 1900, balls: 3600, five_wkts: 8, best_wkts: 8 },
+      ])
+      .mockImplementationOnce(() => [{ runs: 70 }]);
+    const result = await getBowlingLeaderboard(2000, 2025, 'test');
+    expect(result).toHaveLength(1);
+    expect(result[0].best).toBe('8/70');
+  });
+
+  it('handles bestRuns sub-query returning null → best shows /0', async () => {
+    DB.queryAll
+      .mockImplementationOnce(() => [
+        { player: 'X', team: 'Y', matches: 5, wkts: 20,
+          runs_conceded: 400, balls: 600, five_wkts: 1, best_wkts: 5 },
+      ])
+      .mockImplementationOnce(() => [{ runs: null }]);
+    const result = await getBowlingLeaderboard(2000, 2025);
+    expect(result[0].best).toBe('5/0');
+  });
+
+  it('returns null on main query DB error', async () => {
+    DB.queryAll.mockImplementationOnce(() => { throw new Error('fail'); });
+    const result = await getBowlingLeaderboard(2000, 2025);
+    expect(result).toBeNull();
+  });
+});
+
+// ── getVenueTossStats ─────────────────────────────────────────────────────────
+
+describe('getVenueTossStats', () => {
+  it('returns byFormat with test/odi/t20 keys', async () => {
+    const result = await getVenueTossStats(['mcg'], { min: 2000, max: 2025 });
+    expect(Object.keys(result.byFormat)).toEqual(expect.arrayContaining(['test', 'odi', 't20']));
+  });
+
+  it('returns decided=0 and pct when DB returns 0 rows', async () => {
+    const result = await getVenueTossStats(['mcg'], { min: 2000, max: 2025 });
+    expect(result.byFormat.test.decided).toBe(0);
+    expect(result.byFormat.test.battingFirstWins).toBe(0);
+  });
+
+  it('computes Wilson CI when DB returns actual match data', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('SELECT names FROM venues')) return [];
+      if (sql.includes('venue_stats_format')) return [{ decided: 40, wins: 24 }];
+      return baseMock(sql);
+    });
+    const result = await getVenueTossStats(['lords'], { min: 2000, max: 2025 });
+    expect(result.byFormat.test.decided).toBe(40);
+    expect(result.byFormat.test.battingFirstWins).toBe(24);
+    expect(result.byFormat.test.pct).not.toBeNull();
+  });
+
+  it('expands aliases from names column', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('SELECT names FROM venues'))
+        return [{ names: 'Melbourne Cricket Ground;MCG North' }];
+      if (sql.includes('venue_stats_format')) return [{ decided: 10, wins: 6 }];
+      return baseMock(sql);
+    });
+    const result = await getVenueTossStats(['mcg'], { min: 2000, max: 2025 });
+    expect(result.byFormat.odi.decided).toBe(10);
+  });
+
+  it('handles alias expansion DB error gracefully', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('SELECT names FROM venues')) throw new Error('alias fail');
+      if (sql.includes('venue_stats_format')) return [{ decided: 5, wins: 3 }];
+      return baseMock(sql);
+    });
+    const result = await getVenueTossStats(['venue-x'], { min: 2000, max: 2025 });
+    expect(result.byFormat).toBeDefined();
+    expect(result.byFormat.test.decided).toBe(5);
+  });
+
+  it('sets null pct/lo/hi on format query error', async () => {
+    DB.queryAll.mockImplementation(sql => {
+      if (sql.includes('SELECT names FROM venues')) return [];
+      if (sql.includes('venue_stats_format')) throw new Error('query fail');
+      return baseMock(sql);
+    });
+    const result = await getVenueTossStats(['mcg'], { min: 2000, max: 2025 });
+    expect(result.byFormat.test.pct).toBeNull();
+    expect(result.byFormat.test.decided).toBe(0);
+  });
+
+  it('handles empty aliases → likeExprs is "1=0"', async () => {
+    const result = await getVenueTossStats([], { min: 2000, max: 2025 });
+    expect(result.byFormat.test.decided).toBe(0);
+  });
+});
+
+// ── loadVenueCountries ────────────────────────────────────────────────────────
+
+describe('loadVenueCountries', () => {
+  it('returns a Set instance', async () => {
+    const result = await loadVenueCountries();
+    expect(result).toBeInstanceOf(Set);
+  });
+
+  it('returns empty Set when DB returns no country rows', async () => {
+    const result = await loadVenueCountries();
+    expect(result.size).toBe(0);
+  });
+
+  it('populates Set from country rows, filtering null entries', async () => {
+    DB.queryAll.mockImplementationOnce(() => [
+      { country: 'India' },
+      { country: 'Australia' },
+      { country: null },
+    ]);
+    const result = await loadVenueCountries();
+    expect(result.size).toBe(2);
+  });
+
+  it('handles DB error → returns empty Set', async () => {
+    DB.queryAll.mockImplementationOnce(() => { throw new Error('fail'); });
+    const result = await loadVenueCountries();
+    expect(result).toBeInstanceOf(Set);
+    expect(result.size).toBe(0);
   });
 });
