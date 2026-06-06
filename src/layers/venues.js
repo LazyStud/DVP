@@ -8,6 +8,7 @@ import { showVenueTooltip, moveTooltipToEvent, hideTooltip } from '../ui/tooltip
 import { VenueWindow } from '../venue.js';
 import { toast, toastHide }                   from '../ui/toast.js';
 import { focusGlobeOn, focusMapOn }           from './focus.js';
+import { focusDeckOn }                        from '../globe/focusDeck.js';
 import { pushHash }                           from '../ui/urlState.js';
 
 // ── Venue key + dedup ────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ export function addVenues(rows) {
 // ── Draw + position ──────────────────────────────────────────────────────────
 
 export function drawVenues() {
+  if (state.mode === 'globe') { state.rebuildGlobeLayers?.(); return; }
   const sel = state.gVenues.selectAll('image.venue-icon')
     .data(state.venuesAll, d => d._key || (d._key = venueKey(d)));
   sel.exit().remove();
@@ -90,7 +92,7 @@ export async function handleCountryClick(feature) {
   state.stopSpin?.();
   pushHash({ country: name });
   toast(`Searching stadiums in ${feature.properties?.name || 'country'}…`);
-  if (state.mode === 'globe') await focusGlobeOn(feature); else await focusMapOn(feature);
+  if (state.mode === 'globe') await focusDeckOn(feature); else await focusMapOn(feature);
   try {
     const rows = await loadVenuesForCountry(name);
     addVenues(rows); drawVenues();

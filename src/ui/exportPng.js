@@ -276,14 +276,23 @@ export function initExportButtons() {
   const globeBtn = document.getElementById('exportGlobeBtn');
   if (globeBtn) {
     globeBtn.addEventListener('click', () => {
-      const svgEl = document.querySelector('#globe svg');
-      if (!svgEl) return;
-
       const yearText = document.getElementById('yearBoxValue')?.textContent?.replace('Years ', '') || '2000–2025';
       const rawFmt   = (window.selectedFormat || 'all');
       const fmt      = rawFmt === 'all' ? 'All formats' : rawFmt.toUpperCase();
-      const mode     = document.body.classList.contains('map-mode') ? '2D Map' : '3D Globe';
+      const isMap    = document.body.classList.contains('map-mode');
+      const mode     = isMap ? '2D Map' : '3D Globe';
 
+      if (!isMap) {
+        // deck.gl canvas — requires preserveDrawingBuffer: true (set in deckInstance.js)
+        const deckCanvas = document.querySelector('#globe canvas');
+        if (deckCanvas) {
+          deckCanvas.toBlob(b => { if (b) { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'cricket-globe.png'; a.click(); } }, 'image/png');
+          return;
+        }
+      }
+
+      const svgEl = document.querySelector('#globe svg');
+      if (!svgEl) return;
       exportSvgAsPng(svgEl, 'cricket-globe.png', {
         title:   `Global Cricket Insights — ${mode}`,
         filters: `${yearText} · ${fmt}`,

@@ -86,6 +86,10 @@ export const state = {
   redrawAll: null,
   startSpin: null,
   stopSpin:  null,
+  rebuildGlobeLayers: null, // set by main.js; used by layer modules to trigger a deck.gl rebuild
+
+  // --- deck.gl globe state ---
+  deckReady: false,
 
   // --- derived colour scales (computed from PALETTES in main.js) ---
   PALETTES,

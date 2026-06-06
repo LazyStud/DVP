@@ -38,6 +38,14 @@ import { initBeatHover }                               from './ui/beatHover.js';
 import { initTodayInCricket }                          from './ui/todayInCricket.js';
 import { startNarrative, finishNarrative }              from './ui/loadingNarrative.js';
 import { initHostNationPulse }                          from './ui/hostNationPulse.js';
+import { showCountryTooltip, showVenueTooltip, showTooltipAt, hideTooltip } from './ui/tooltip.js';
+import {
+  initDeck, setDeckCallbacks, setDeckLayers, setDeckViewState, getDeckViewState,
+  showDeckCanvas, hideDeckCanvas, resizeDeck, getDeckCanvas, computeGlobeFillZoom,
+} from './globe/deckInstance.js';
+import { buildGlobeLayers }         from './globe/globeLayers.js';
+import { startDeckSpin, stopDeckSpin } from './globe/spinController.js';
+import { focusDeckOn }              from './globe/focusDeck.js';
 
 // ── World topology ────────────────────────────────────────────────────────────
 
@@ -89,17 +97,14 @@ state.colorScales = {
 
 // ── Spin ──────────────────────────────────────────────────────────────────────
 
-function stopSpin() { if (state.spinTimer) { state.spinTimer.stop(); state.spinTimer = null; } }
+function stopSpin() {
+  if (state.spinTimer) { state.spinTimer.stop(); state.spinTimer = null; }
+  stopDeckSpin();
+}
 function startSpin() {
   stopSpin();
-  state.lastElapsed = null;
-  state.spinTimer = d3.timer(elapsed => {
-    if (state.mode !== 'globe' || state.isDragging || state.countryFocused) { state.lastElapsed = elapsed; return; }
-    if (state.lastElapsed == null) state.lastElapsed = elapsed;
-    const dt = elapsed - state.lastElapsed; state.lastElapsed = elapsed;
-    const r = state.projection.rotate(); r[0] += (SPIN_DEG_PER_SEC / 1000) * dt;
-    state.projection.rotate(r); redrawAll();
-  });
+  if (state.mode === 'map') return;
+  startDeckSpin();
 }
 state.startSpin = startSpin;
 state.stopSpin  = stopSpin;
@@ -107,6 +112,10 @@ state.stopSpin  = stopSpin;
 // ── redrawAll ────────────────────────────────────────────────────────────────
 
 function redrawAll() {
+  if (state.mode === 'globe') {
+    if (state.deckReady) setDeckLayers(buildGlobeLayers());
+    return;
+  }
   state.gRoot.selectAll('path').attr('d', state.path);
   updateHoverTransform();
   updateVenuesPosition();
@@ -146,6 +155,53 @@ const zoomMap = d3.zoom()
 state.zoomGlobe = zoomGlobe;
 state.zoomMap   = zoomMap;
 
+// ── deck.gl interaction handlers ─────────────────────────────────────────────
+
+function deckInfoToClient(info) {
+  const canvas = getDeckCanvas();
+  const rect   = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
+  return { clientX: (info.x || 0) + rect.left, clientY: (info.y || 0) + rect.top };
+}
+
+function handleDeckHover(info) {
+  if (state.mode !== 'globe') return;
+  if (!info?.object) { try { hideTooltip(); } catch (_) {} return; }
+  const ev      = deckInfoToClient(info);
+  const layerId = info.layer?.id || '';
+  try {
+    if (layerId === 'globe-countries') {
+      state.hoveredId = info.object?.id ?? null;
+      showCountryTooltip(ev, info.object);
+    } else if (layerId === 'globe-venues') {
+      showVenueTooltip(ev, info.object);
+    } else if (layerId === 'globe-flows') {
+      const d = info.object;
+      showTooltipAt(ev.clientX, ev.clientY,
+        `<div style="font-weight:600">${d.originKey} → ${d.hostKey}</div>` +
+        `<div style="font-size:0.9rem">Matches: <strong>${d.matches}</strong></div>`);
+    }
+  } catch (e) { reportError('nonfatal', e); }
+}
+
+function handleDeckClick(info) {
+  if (state.mode !== 'globe') return;
+  if (!info?.object) return;
+  const layerId = info.layer?.id || '';
+  try {
+    if (layerId === 'globe-countries') {
+      handleCountryClick(info.object);
+    } else if (layerId === 'globe-venues') {
+      state.stopSpin?.();
+      VenueWindow.open(info.object);
+    } else if (layerId === 'globe-flows') {
+      const feat = state.countries?.find(
+        f => canonicalMapName(f.properties?.name || '') === info.object.hostKey
+      );
+      if (feat) handleCountryClick(feat);
+    }
+  } catch (e) { reportError('nonfatal', e); }
+}
+
 // ── Mode toggle ───────────────────────────────────────────────────────────────
 
 function updateToggleUI() {
@@ -158,19 +214,30 @@ function updateToggleUI() {
   window.dispatchEvent(new CustomEvent('view-mode-sync', { detail: { map: shouldBeMap } }));
 }
 
+const GLOBE_GROUPS = () => [
+  state.gSphere, state.gGraticule, state.gCountries,
+  state.gBoundary, state.gSpikes, state.gVenues, state.gFlowArcs,
+];
+
 function setMode(newMode) {
   if (newMode === state.mode) return;
   state.mode = newMode;
   gRoot.attr('transform', null);
 
   if (state.mode === 'map') {
-    stopSpin(); gRoot.on('.drag', null);
+    stopSpin();
+    hideDeckCanvas();
+    GLOBE_GROUPS().forEach(g => g?.style('display', null));
+    gRoot.on('.drag', null);
     state.svg.on('.zoom', null).call(zoomMap).call(zoomMap.transform, d3.zoomIdentity);
     state.mapZoomK = 1; state.projection = mapProj; state.path.projection(state.projection);
     resize(); redrawAll();
   } else {
-    state.globeZoomK = 1; state.svg.on('.zoom', null).call(zoomGlobe).call(zoomGlobe.transform, d3.zoomIdentity);
-    gRoot.call(dragGlobe); state.projection = globeProj; state.path.projection(state.projection);
+    state.globeZoomK = 1;
+    GLOBE_GROUPS().forEach(g => g?.style('display', 'none'));
+    state.svg.on('.zoom', null); gRoot.on('.drag', null);
+    state.projection = globeProj; state.path.projection(state.projection);
+    showDeckCanvas();
     resize(); redrawAll(); startSpin();
   }
   updateToggleUI();
@@ -199,6 +266,11 @@ function resize() {
   if (state.mode === 'globe') {
     state.baseScale = (Math.min(width, height) / 2) * 0.95;
     state.projection.translate([width / 2, height / 2]).scale(state.baseScale * state.globeZoomK).clipAngle(90);
+    resizeDeck(width, height);
+    if (!state.countryFocused) {
+      const vs = getDeckViewState();
+      setDeckViewState({ zoom: computeGlobeFillZoom(Math.min(width, height), vs.latitude) });
+    }
   } else {
     state.projection.fitExtent([[20, 20], [width - 20, height - 20]], { type: 'Sphere' });
   }
@@ -210,13 +282,11 @@ window.addEventListener('resize', resize);
 // ── Double-click reset ────────────────────────────────────────────────────────
 
 state.svg.on('dblclick', () => {
-  if (state.mode === 'globe') {
-    state.projection.rotate([0, 0, 0]); state.globeZoomK = 1; state.countryFocused = false; startSpin();
-    state.svg.transition().duration(500).call(zoomGlobe.transform, d3.zoomIdentity).on('end', redrawAll);
-  } else {
-    state.svg.transition().duration(400).call(zoomMap.transform, d3.zoomIdentity).on('end', () => gRoot.attr('transform', null));
-    state.mapZoomK = 1; state.countryFocused = false;
-  }
+  // Globe mode: canvas sits above SVG and captures events — handled via canvas dblclick
+  if (state.mode !== 'map') return;
+  state.svg.transition().duration(400).call(zoomMap.transform, d3.zoomIdentity)
+    .on('end', () => gRoot.attr('transform', null));
+  state.mapZoomK = 1; state.countryFocused = false;
   try { pushHash({ country: '' }); } catch (_) { /* empty */ }
 });
 
@@ -232,6 +302,7 @@ async function recomputeAndDraw(yearMin, yearMax) {
   drawFlowArcs();
   drawBubbles();
   updateBubbleLegend();
+  if (state.mode === 'globe' && state.deckReady) setDeckLayers(buildGlobeLayers());
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -257,8 +328,28 @@ state.venuesAll = []; state.venueIndex.clear();
 try { state.venueCountrySet = await loadVenueCountries(); applyCountryHighlight(); initHostNationPulse(); }
 catch (e) { if (DEBUG) console.warn('Could not load venue countries:', e); }
 
-gRoot.call(dragGlobe);
-state.svg.call(zoomGlobe).call(zoomGlobe.transform, d3.zoomIdentity);
+// ── deck.gl globe init ────────────────────────────────────────────────────────
+initDeck(state.container);
+state.deckReady = true;
+state.rebuildGlobeLayers = () => { if (state.deckReady) setDeckLayers(buildGlobeLayers()); };
+setDeckCallbacks({
+  onHover:   handleDeckHover,
+  onClick:   handleDeckClick,
+  onDblClick: () => {
+    const rect = state.container.getBoundingClientRect();
+    const fillZoom = computeGlobeFillZoom(Math.min(rect.width, rect.height), -20);
+    setDeckViewState({ longitude: 0, latitude: -20, zoom: fillZoom, bearing: 0, pitch: 0 });
+    state.globeZoomK = 1; state.countryFocused = false; startSpin();
+    try { pushHash({ country: '' }); } catch (_) { /* empty */ }
+  },
+});
+// Initial mode is globe — hide SVG globe groups; deck canvas shows instead
+GLOBE_GROUPS().forEach(g => g?.style('display', 'none'));
+showDeckCanvas();
+// Sync deck.gl viewport to container dimensions — canvas starts display:none so
+// deck.gl reads 0×0 at init; resize() corrects that immediately after show.
+resize();
+// D3 drag/zoom not used in globe mode — deck.gl controller handles interaction
 updateToggleUI(); startSpin();
 
 createLegendUI();
@@ -361,7 +452,8 @@ try {
     fToggle.addEventListener('change', ev => {
       state.flowVisible = !!ev.target.checked;
       try {
-        if (!state.flowVisible) state.gFlowArcs.selectAll('path.flow').style('display', 'none');
+        if (state.mode === 'globe') { state.rebuildGlobeLayers?.(); }
+        else if (!state.flowVisible) state.gFlowArcs.selectAll('path.flow').style('display', 'none');
         else { state.gFlowArcs.selectAll('path.flow').style('display', 'block'); drawFlowArcs(); }
       } catch (e) { reportError('nonfatal', e); }
     });

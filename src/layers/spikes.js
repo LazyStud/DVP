@@ -7,6 +7,7 @@ const spikeColor = () => getComputedStyle(document.documentElement).getPropertyV
 // ── Draw / update ────────────────────────────────────────────────────────────
 
 export function drawSpikes() {
+  if (state.mode === 'globe') return; // rendered by deck.gl in globe mode
   if (state.mode === 'map') {
     try { state.gSpikes.selectAll('*').remove(); } catch (e) { reportError('nonfatal', e); }
     return;
@@ -39,6 +40,7 @@ export function drawSpikes() {
 }
 
 export function updateSpikesPosition() {
+  if (state.mode === 'globe') return; // rendered by deck.gl
   if (state.mode === 'map') {
     state.gSpikes.selectAll('line.spike').style('display', 'none');
     return;

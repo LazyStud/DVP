@@ -2,11 +2,32 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    // Node environment — no DOM needed for pure logic tests
     environment: 'node',
-    // Where to find test files
     include: ['tests/unit/**/*.spec.js'],
-    // Reporter: verbose in CI (where NO_COLOR is set), concise locally
     reporter: process.env.CI ? 'verbose' : 'default',
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.js'],
+      // D3 rendering layers and DOM-heavy entry points can't be exercised in a
+      // Node environment — exclude them so the thresholds reflect the logic layer
+      exclude: [
+        'src/layers/**',
+        'src/globe/**',
+        'src/main.js',
+        'src/venue.js',
+        'src/venue-worker.js',
+        'src/debug.js',
+      ],
+      reporter: ['text', 'lcov', 'html', 'json', 'json-summary'],
+      // Regression floor ratcheted near current actuals (lines ~95%, statements
+      // ~92%, functions ~88%, branches ~80%). Branches held at the 80% target.
+      // Raise as coverage improves — see the per-category numbers in `npm run test:coverage`.
+      thresholds: {
+        lines: 89,
+        functions: 82,
+        branches: 80,
+        statements: 85,
+      },
+    },
   },
 });

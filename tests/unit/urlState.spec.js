@@ -205,3 +205,34 @@ describe('pushHash', () => {
     expect(url).toContain('country=pakistan');
   });
 });
+
+// ── pushHash branch coverage ─────────────────────────────────────────────────
+
+describe('pushHash branch coverage', () => {
+  let replaceState;
+
+  beforeEach(() => {
+    replaceState = vi.fn();
+    vi.stubGlobal('history', { replaceState });
+    vi.stubGlobal('location', { hash: '', pathname: '/', search: '' });
+    state.mode           = 'globe';
+    state.yearRange      = { min: 2000, max: 2025 };
+    state.selectedFormat = 'all';
+    pushHash({ country: '' });
+    replaceState.mockClear();
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('coerces a null country patch to an empty string', () => {
+    pushHash({ country: null }); // patch.country ?? '' → ''
+    const [, , url] = replaceState.mock.calls[0];
+    expect(url).not.toContain('country=');
+  });
+
+  it('falls back to "/" when location.pathname is empty', () => {
+    vi.stubGlobal('location', { hash: '', pathname: '', search: '' });
+    pushHash(); // all defaults → clean URL via (location.pathname || '/')
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/');
+  });
+});

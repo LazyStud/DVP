@@ -5,9 +5,11 @@ export default defineConfig({
   root: '.',
   build: {
     outDir: 'dist',
-    rollupOptions: {
-      input: 'index.html',
-    },
+    rollupOptions: { input: 'index.html' },
+    chunkSizeWarningLimit: 2000,
+  },
+  optimizeDeps: {
+    include: ['@deck.gl/core', '@deck.gl/layers', '@deck.gl/geo-layers'],
   },
   plugins: [
     viteStaticCopy({
