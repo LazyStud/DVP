@@ -69,6 +69,14 @@ describe('toast.js', () => {
       expect(document.getElementById('venue-loading-dialog').style.display).toBe('none');
     });
 
+    it('clears the prior timeout and listener when re-shown without hiding first', () => {
+      showVenueLoading('A');         // sets _state.timeoutId + onOpen
+      showVenueLoading('B');         // both already set → clear-then-reset branches fire
+      const dialog = document.getElementById('venue-loading-dialog');
+      expect(dialog.style.display).toBe('flex');
+      expect(dialog.querySelector('div').textContent).toBe('B');
+    });
+
     it('auto-hides when venuewindow:open fires', () => {
       showVenueLoading('Auto-hide test');
       window.dispatchEvent(new CustomEvent('venuewindow:open'));

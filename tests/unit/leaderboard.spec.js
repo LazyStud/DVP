@@ -340,6 +340,132 @@ describe('tbody player row click — bowler', () => {
   });
 });
 
+// ── Branch coverage: guards, fallbacks and edge formatting ───────────────────
+
+describe('leaderboard branch coverage', () => {
+  it('stops/starts the globe spin around open/close in globe mode', async () => {
+    vi.useFakeTimers();
+    const { state } = await import('../../src/state.js');
+    state.mode = 'globe';
+    state.countryFocused = false;
+    state.stopSpin = vi.fn();
+    state.startSpin = vi.fn();
+    openOverlay();
+    expect(state.stopSpin).toHaveBeenCalled();
+    closeOverlay();
+    expect(state.startSpin).toHaveBeenCalled();
+    vi.runAllTimers();
+    state.mode = 'map';
+    state.stopSpin = null;
+    state.startSpin = null;
+  });
+
+  it('falls back to demo data when the query resolves null (batting)', async () => {
+    getBattingLeaderboard.mockResolvedValue(null);
+    await renderLeaderboard('batting');
+    expect(document.querySelectorAll('#tabpanel tbody tr').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to demo data when the query resolves null (bowling)', async () => {
+    getBowlingLeaderboard.mockResolvedValue(null);
+    await renderLeaderboard('bowling');
+    expect(document.querySelectorAll('#tabpanel tbody tr').length).toBeGreaterThan(0);
+  });
+
+  it('uses the default year range when state.yearRange is missing', async () => {
+    const { state } = await import('../../src/state.js');
+    const prev = state.yearRange;
+    state.yearRange = null;
+    getBattingLeaderboard.mockResolvedValue([
+      { player: 'X', team: 'IND', runs: 100, matches: 5 },
+    ]);
+    await renderLeaderboard('batting');
+    expect(document.querySelector('#tabpanel tbody')?.textContent).toContain('X');
+    state.yearRange = prev;
+  });
+
+  it('coerces a non-string selectedFormat to "all"', async () => {
+    const { state } = await import('../../src/state.js');
+    const prev = state.selectedFormat;
+    state.selectedFormat = 123; // not a string → fmtDefault = 'all'
+    getBattingLeaderboard.mockResolvedValue([{ player: 'Y', team: 'AUS', runs: 50 }]);
+    await renderLeaderboard('batting');
+    expect(document.querySelector('#tabpanel .lb-meta')?.textContent).toContain('ALL');
+    state.selectedFormat = prev;
+  });
+
+  it('treats an empty-string selectedFormat as "all"', async () => {
+    const { state } = await import('../../src/state.js');
+    const prev = state.selectedFormat;
+    state.selectedFormat = ''; // string but falsy → 'all'
+    getBattingLeaderboard.mockResolvedValue([{ player: 'Z', team: 'ENG', runs: 70 }]);
+    await renderLeaderboard('batting');
+    expect(document.querySelector('#tabpanel .lb-meta')?.textContent).toContain('ALL');
+    state.selectedFormat = prev;
+  });
+
+  it('renders a row whose optional fields are all missing', async () => {
+    getBattingLeaderboard.mockResolvedValue([{ player: 'Sparse' }]); // no team/runs/best/etc
+    await renderLeaderboard('batting');
+    const row = document.querySelector('#tabpanel tbody tr');
+    expect(row.textContent).toContain('Sparse');
+    expect(row.textContent).toContain('0'); // missing numeric fields default to 0
+  });
+
+  it('handles an unknown kind (no default sort column)', async () => {
+    getBowlingLeaderboard.mockResolvedValue([{ player: 'Keeper', team: 'SA', wkts: 3 }]);
+    await renderLeaderboard('fielding'); // not batting/bowling → sortState.col = null
+    expect(document.querySelector('#tabpanel tbody')?.textContent).toContain('Keeper');
+  });
+
+  it('returns 0 from the comparator when a sorted value is null', async () => {
+    getBattingLeaderboard.mockResolvedValue([
+      { player: 'NullSR', team: 'A', runs: 100, sr: null, avg: 10, matches: 5, balls: 0, hundreds: 0, fifties: 0, best: '10' },
+      { player: 'HasSR',  team: 'B', runs: 200, sr: 90,   avg: 20, matches: 6, balls: 0, hundreds: 0, fifties: 0, best: '20' },
+    ]);
+    await renderLeaderboard('batting');
+    const srTh = document.querySelector('#tabpanel th[data-col="sr"]');
+    srTh?.click(); // comparator hits the av==null short-circuit on the null row
+    expect(document.querySelectorAll('#tabpanel tbody tr').length).toBe(2);
+  });
+
+  it('sorts by "best" across null, empty and slash-less values', async () => {
+    getBowlingLeaderboard.mockResolvedValue([
+      { player: 'NullBest', team: 'A', wkts: 5,  eco: 6, avg: 25, matches: 4, five_wkts: 0, best: null },
+      { player: 'EmptyBest', team: 'B', wkts: 6, eco: 5, avg: 24, matches: 5, five_wkts: 0, best: '   ' },
+      { player: 'NoSlash',  team: 'C', wkts: 7,  eco: 4, avg: 23, matches: 6, five_wkts: 0, best: '5' },
+    ]);
+    await renderLeaderboard('bowling');
+    const bestTh = document.querySelector('#tabpanel th[data-col="best"]');
+    bestTh?.click();
+    expect(document.querySelectorAll('#tabpanel tbody tr').length).toBe(3);
+  });
+
+  it('ignores a click that is not on a row (tbody guard)', async () => {
+    getBattingLeaderboard.mockResolvedValue([{ player: 'Real Player', team: 'IND', runs: 100, matches: 5 }]);
+    await renderLeaderboard('batting');
+    const { openPlayer } = await import('../../src/ui/playerWindow.js');
+    openPlayer.mockClear();
+    const tbody = document.querySelector('#tabpanel tbody');
+    tbody?.dispatchEvent(new MouseEvent('click', { bubbles: true })); // target = tbody, no closest('tr')
+    expect(openPlayer).not.toHaveBeenCalled();
+  });
+
+  it('ignores a click on a non-sortable header (no data-col)', async () => {
+    getBattingLeaderboard.mockResolvedValue([{ player: 'P', team: 'IND', runs: 100, matches: 5 }]);
+    await renderLeaderboard('batting');
+    const rankTh = document.querySelector('#tabpanel thead th'); // first th is '#', no data-col
+    expect(() => rankTh?.click()).not.toThrow();
+  });
+
+  it('ignores a header click that lands outside any th (thead guard)', async () => {
+    getBattingLeaderboard.mockResolvedValue([{ player: 'P', team: 'IND', runs: 100, matches: 5 }]);
+    await renderLeaderboard('batting');
+    const thead = document.querySelector('#tabpanel thead');
+    expect(() => thead?.dispatchEvent(new MouseEvent('click', { bubbles: true }))).not.toThrow();
+  });
+});
+
 // ── Escape key closes leaderboard ────────────────────────────────────────────
 
 describe('Escape key closes leaderboard', () => {

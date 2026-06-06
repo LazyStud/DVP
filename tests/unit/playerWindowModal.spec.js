@@ -253,4 +253,67 @@ describe('export PNG button', () => {
     document.querySelector('.player-export-btn')?.click();
     expect(exportSvgAsPng).toHaveBeenCalled();
   });
+
+  it('appends a format suffix to the export title when a non-"all" format is active', async () => {
+    openPlayer('V Kohli', 'IND', 'batting');
+    Array.from(document.querySelectorAll('.player-fmt-btn'))
+      .find(b => b.dataset.fmt === 'test')?.click();
+    await flush();
+    exportSvgAsPng.mockClear();
+    document.querySelector('.player-export-btn')?.click();
+    expect(exportSvgAsPng).toHaveBeenCalled();
+    const title = exportSvgAsPng.mock.calls[0][2].title;
+    expect(title).toContain('TEST');
+  });
+
+  it('does not export when the chart SVG is missing', () => {
+    openPlayer('V Kohli', 'IND', 'batting');
+    const svg = document.querySelector('svg[data-role="player-chart"]');
+    const parent = svg?.parentNode;
+    svg?.remove();
+    exportSvgAsPng.mockClear();
+    document.querySelector('.player-export-btn')?.click();
+    expect(exportSvgAsPng).not.toHaveBeenCalled();
+    // Panel is shared across tests — restore the chart SVG so later tests still see it.
+    if (svg && parent) parent.appendChild(svg);
+  });
+});
+
+// ── Event-delegation guards & misc fallbacks ─────────────────────────────────
+
+describe('player window guards', () => {
+  it('ignores tab-bar clicks that miss a tab button', () => {
+    openPlayer('V Kohli', 'IND', 'batting');
+    const tabBar = document.querySelector('.player-tabbar');
+    expect(() => tabBar?.dispatchEvent(new MouseEvent('click', { bubbles: true }))).not.toThrow();
+  });
+
+  it('ignores kind-bar clicks that miss a kind button', () => {
+    openPlayer('V Kohli', 'IND', 'batting');
+    const kindBar = document.querySelector('.player-kindbar');
+    expect(() => kindBar?.dispatchEvent(new MouseEvent('click', { bubbles: true }))).not.toThrow();
+  });
+
+  it('ignores format-bar clicks that miss a format button', () => {
+    openPlayer('V Kohli', 'IND', 'batting');
+    const fmtBar = document.querySelector('.player-fmtbar');
+    expect(() => fmtBar?.dispatchEvent(new MouseEvent('click', { bubbles: true }))).not.toThrow();
+  });
+
+  it('falls back to the default year range when state.yearRange is null', async () => {
+    const { state } = await import('../../src/state.js');
+    const prev = state.yearRange;
+    state.yearRange = null;
+    openPlayer('V Kohli', 'IND', 'batting');
+    expect(document.querySelector('.player-yearrange')?.textContent).toContain('–');
+    state.yearRange = prev;
+  });
+
+  it('uses the "Player" placeholder name in the export filename when the player name is empty', () => {
+    openPlayer('', 'IND', 'batting'); // currentPlayer falsy → 'Player'
+    exportSvgAsPng.mockClear();
+    document.querySelector('.player-export-btn')?.click();
+    expect(exportSvgAsPng).toHaveBeenCalled();
+    expect(exportSvgAsPng.mock.calls[0][1]).toContain('player');
+  });
 });

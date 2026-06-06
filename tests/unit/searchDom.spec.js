@@ -32,7 +32,9 @@ import { initSearch }                          from '../../src/ui/search.js';
 import { state }                               from '../../src/state.js';
 import { getAllSearchVenues, getAllSearchPlayers } from '../../src/data/queries.js';
 import { openPlayer }                          from '../../src/ui/playerWindow.js';
-import { handleCountryClick }                  from '../../src/layers/venues.js';
+import { handleCountryClick, addVenues }       from '../../src/layers/venues.js';
+import { focusMapOn }                          from '../../src/layers/focus.js';
+import { focusDeckOn }                         from '../../src/globe/focusDeck.js';
 
 const VENUES  = [{ venue: 'Eden Gardens', city: 'Kolkata', country: 'India', latitude: 22.56, longitude: 88.34 }];
 const PLAYERS = [{ name: 'Virat Kohli', team: 'India', kind: 'batting' }];
@@ -184,6 +186,14 @@ describe('pointerdown outside wrap', () => {
 
 // ── mousedown on result ───────────────────────────────────────────────────────
 
+const flush = () => Promise.resolve().then(() => Promise.resolve());
+
+function venueItem() {
+  type('eden');
+  return Array.from(dropdown().querySelectorAll('.search-item'))
+    .find(li => li.querySelector('.search-item-name')?.textContent === 'Eden Gardens');
+}
+
 describe('mousedown on result item', () => {
   it('selecting a country result calls handleCountryClick', async () => {
     type('india');
@@ -195,5 +205,64 @@ describe('mousedown on result item', () => {
     countryItem.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     await Promise.resolve();
     expect(handleCountryClick).toHaveBeenCalled();
+  });
+
+  it('selecting a venue in 2D mode focuses the map and adds the venue', async () => {
+    state.mode = '2d';
+    const item = venueItem();
+    if (!item) return;
+    item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await flush();
+    expect(focusMapOn).toHaveBeenCalled();
+    expect(addVenues).toHaveBeenCalled();
+    expect(state.countryFocused).toBe(true);
+  });
+
+  it('selecting a venue in globe mode focuses the deck globe', async () => {
+    state.mode = 'globe';
+    const item = venueItem();
+    if (!item) return;
+    item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await flush();
+    expect(focusDeckOn).toHaveBeenCalled();
+    state.mode = '2d';
+  });
+
+  it('still adds the venue when the focus animation rejects', async () => {
+    state.mode = '2d';
+    focusMapOn.mockRejectedValueOnce(new Error('focus failed'));
+    const item = venueItem();
+    if (!item) return;
+    item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await flush();
+    expect(addVenues).toHaveBeenCalled();
+  });
+
+  it('swallows an error thrown by handleCountryClick', async () => {
+    handleCountryClick.mockImplementationOnce(() => { throw new Error('boom'); });
+    type('india');
+    const countryItem = Array.from(dropdown().querySelectorAll('.search-item'))
+      .find(li => li.querySelector('.search-item-name')?.textContent === 'India');
+    if (!countryItem) return;
+    expect(() => countryItem.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))).not.toThrow();
+  });
+});
+
+// ── extra keyboard / pointer guards ──────────────────────────────────────────
+
+describe('search guards', () => {
+  it('ArrowDown with an empty query does nothing (no items)', () => {
+    type('');
+    expect(() =>
+      inp().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    ).not.toThrow();
+    expect(dropdown().querySelector('.search-item--active')).toBeNull();
+  });
+
+  it('pointerdown inside the search wrap keeps the dropdown open', () => {
+    type('india');
+    expect(dropdown().hidden).toBe(false);
+    inp().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(dropdown().hidden).toBe(false);
   });
 });

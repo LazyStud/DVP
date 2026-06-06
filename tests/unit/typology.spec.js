@@ -159,4 +159,55 @@ describe('loadTypologyContext', () => {
     expect(ctx.test.sr).toHaveLength(1);
     expect(ctx.test.sr[0]).toBeCloseTo(74, 0);
   });
+
+  it('returns empty arrays when the venues query returns null', async () => {
+    const db = {
+      queryAll: sql => (sql.includes('FROM venues') ? null : [
+        { v: 'a', f: 'test', m: 20, sr: 80, bp: 30, bavg: 25 },
+      ]),
+    };
+    const ctx = await loadTypologyContext(db);
+    expect(ctx.test.sr).toEqual([80]);
+  });
+
+  it('returns empty arrays when the stats query returns null', async () => {
+    const db = {
+      queryAll: sql => (sql.includes('FROM venues') ? [] : null),
+    };
+    const ctx = await loadTypologyContext(db);
+    expect(ctx.all.sr).toEqual([]);
+  });
+
+  it('skips empty alias segments and venues with a blank canonical name', async () => {
+    const db = {
+      queryAll: sql => {
+        if (sql.includes('FROM venues')) {
+          return [
+            { venue: "Lord's", names: "lords;;st john's wood" }, // empty middle segment
+            { venue: '',        names: 'ignored' },              // blank canonical → skipped
+            { venue: 'Oval',    names: null },                   // no names column
+          ];
+        }
+        return [{ v: 'lords', f: 'test', m: 20, sr: 80, bp: 30, bavg: 25 }];
+      },
+    };
+    const ctx = await loadTypologyContext(db);
+    expect(ctx.test.sr).toContain(80); // alias "lords" resolved to canonical Lord's
+  });
+
+  it('handles zero-valued metrics and a null venue key in the weighted merge', async () => {
+    const db = {
+      queryAll: sql => {
+        if (sql.includes('FROM venues')) return [];
+        return [
+          { v: 'lords', f: 'test', m: 12, sr: 80, bp: 30, bavg: 25 },
+          { v: 'lords', f: 'test', m: 10, sr: 0,  bp: 0,  bavg: 0 }, // falsy metrics → ||0 fallback
+          { v: null,    f: null,   m: 11, sr: 60, bp: 20, bavg: 30 }, // null key + null format → 'all'
+        ];
+      },
+    };
+    const ctx = await loadTypologyContext(db);
+    expect(ctx.test.sr).toHaveLength(1);
+    expect(ctx.all.sr.length).toBeGreaterThanOrEqual(2);
+  });
 });

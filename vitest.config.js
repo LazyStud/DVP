@@ -19,13 +19,13 @@ export default defineConfig({
         'src/debug.js',
       ],
       reporter: ['text', 'lcov', 'html', 'json', 'json-summary'],
-      // Regression floor set at current levels — raise as test coverage improves.
-      // Most of src/ui/ and src/data/queries.js are DOM/SQL templates with near-0%
-      // coverage, which keeps the aggregate low even after excluding rendering layers.
+      // Regression floor ratcheted near current actuals (lines ~95%, statements
+      // ~92%, functions ~88%, branches ~80%). Branches held at the 80% target.
+      // Raise as coverage improves — see the per-category numbers in `npm run test:coverage`.
       thresholds: {
         lines: 89,
         functions: 82,
-        branches: 66,
+        branches: 80,
         statements: 85,
       },
     },

@@ -280,4 +280,70 @@ describe('showCountryTooltip', () => {
     // Should still render basic HTML
     expect(document.getElementById('map-tooltip').innerHTML).toContain('India');
   });
+
+  it('renders a singular "venue" label when exactly one venue is returned', async () => {
+    state.choroByCountry = new Map([
+      ['india', { matches: 10, homeWins: 5, formats: {}, byYear: {} }],
+    ]);
+    loadVenuesForCountry.mockResolvedValue([{ name: 'Solo Ground' }]); // length 1, uses v.name fallback
+    await showCountryTooltip({ clientX: 0, clientY: 0 }, { properties: { name: 'India' } });
+    const html = document.getElementById('map-tooltip').innerHTML;
+    expect(html).toMatch(/1 venue[^s]/); // "1 venue ·" — no plural 's'
+    expect(html).toContain('Solo Ground');
+  });
+
+  it('handles a record with zero matches (pct = 0) and no byYear', async () => {
+    state.choroByCountry = new Map([
+      ['india', { matches: 0, homeWins: 0, formats: {} }], // no byYear → sparkline skipped
+    ]);
+    loadVenuesForCountry.mockResolvedValue([]);
+    await showCountryTooltip({ clientX: 0, clientY: 0 }, { properties: { name: 'India' } });
+    const html = document.getElementById('map-tooltip').innerHTML;
+    expect(html).toContain('0%');
+    expect(html).not.toContain('<svg');
+  });
+
+  it('falls back to the canonical name when the feature has no properties', async () => {
+    state.choroByCountry = new Map();
+    await showCountryTooltip({ clientX: 0, clientY: 0 }, {}); // no .properties
+    expect(document.getElementById('map-tooltip').innerHTML).toContain('No match data');
+  });
+});
+
+// ── moveTooltipToEvent: coordinate fallbacks ─────────────────────────────────
+
+describe('moveTooltipToEvent fallbacks', () => {
+  it('falls back to 0,0 when neither clientX nor touches are present', () => {
+    showTooltipAt(0, 0, 'x');
+    moveTooltipToEvent({}); // no clientX / clientY / touches → both default to 0
+    expect(state.tooltipEl.style.left).toBe('12px');
+    expect(state.tooltipEl.style.top).toBe('12px');
+  });
+});
+
+// ── showVenueTooltip: name fallbacks, alias names, empty DB result ────────────
+
+describe('showVenueTooltip branch coverage', () => {
+  it('uses d.name when d.venue is absent and splits d.names aliases', async () => {
+    DB.queryAll.mockReturnValue([{ matches: 7, t20_matches: 3, odi_matches: 2, test_matches: 2 }]);
+    await showVenueTooltip(
+      { clientX: 10, clientY: 10 },
+      { name: 'Aliased Oval', names: 'Old Oval;The Oval', city: 'London' },
+    );
+    expect(document.getElementById('map-tooltip').innerHTML).toContain('Aliased Oval');
+  });
+
+  it('renders zeroed counts when the DB returns no rows', async () => {
+    DB.queryAll.mockReturnValue([]); // rows[0] undefined → agg stays default
+    await showVenueTooltip({ clientX: 0, clientY: 0 }, { venue: 'Empty Ground' });
+    const html = document.getElementById('map-tooltip').innerHTML;
+    expect(html).toContain('Total matches:');
+    expect(html).toContain('Empty Ground');
+  });
+
+  it('handles a venue object with neither venue nor name', async () => {
+    DB.queryAll.mockReturnValue([{ matches: 1 }]); // agg with only matches → other counts || 0
+    await showVenueTooltip({ clientX: 0, clientY: 0 }, { city: 'Nowhere' });
+    expect(document.getElementById('map-tooltip')).not.toBeNull();
+  });
 });

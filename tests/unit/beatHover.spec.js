@@ -40,6 +40,15 @@ describe('applyLandingPalette', () => {
     // India and Australia should hash to different palette entries
     expect(fills[0]).not.toBe(fills[1]);
   });
+
+  it('resolves names from __data__ and falls back to the element id', () => {
+    const els = document.querySelectorAll('#globe .country');
+    els[0].__data__ = { properties: { name: 'Bharat' } }; // bound-datum path
+    els[1].removeAttribute('data-name');                  // no datum/attr → id fallback
+    applyLandingPalette();
+    expect(els[0].style.fill).toBeTruthy();
+    expect(els[1].style.fill).toBeTruthy();
+  });
 });
 
 describe('initBeatHover', () => {
@@ -98,5 +107,25 @@ describe('initBeatHover', () => {
     document.querySelectorAll('#globe .country').forEach(el => {
       expect(el.style.fill).toBeTruthy();
     });
+  });
+
+  it('ignores beats beyond the configured BEATS set', () => {
+    document.querySelector('.hero-beats').insertAdjacentHTML('beforeend', '<li>Extra beat</li>');
+    initBeatHover();
+    const extra = document.querySelectorAll('.hero-beats li')[3]; // index 3 → BEATS[3] undefined
+    expect(() => {
+      extra.dispatchEvent(new MouseEvent('mouseenter'));
+      extra.dispatchEvent(new MouseEvent('mouseleave'));
+    }).not.toThrow();
+  });
+
+  it('does not throw on hover when the preview label is absent', () => {
+    document.getElementById('globePreviewLabel').remove();
+    initBeatHover();
+    const li = document.querySelectorAll('.hero-beats li')[1];
+    expect(() => {
+      li.dispatchEvent(new MouseEvent('mouseenter'));
+      li.dispatchEvent(new MouseEvent('mouseleave'));
+    }).not.toThrow();
   });
 });
