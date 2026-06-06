@@ -105,3 +105,29 @@ describe('landing observer', () => {
     vi.useRealTimers();
   });
 });
+
+describe('loadAndShow edge cases', () => {
+  it('does not show panel when computeInsightPool returns empty pool', async () => {
+    computeInsightPool.mockResolvedValue([]);
+    const panel = document.getElementById('insightsFeed');
+    panel.classList.remove('insights-feed--visible');
+    // showInsightsFeed triggers loadAndShow since pool is empty and not loading
+    vi.useFakeTimers();
+    showInsightsFeed();
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
+    expect(panel.classList.contains('insights-feed--visible')).toBe(false);
+  });
+
+  it('handles computeInsightPool rejection gracefully', async () => {
+    localStorage.setItem('gci-insights-closed', '0');
+    computeInsightPool.mockRejectedValue(new Error('fail'));
+    const panel = document.getElementById('insightsFeed');
+    panel.classList.remove('insights-feed--visible');
+    vi.useFakeTimers();
+    showInsightsFeed();
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
+    expect(panel.classList.contains('insights-feed--visible')).toBe(false);
+  });
+});

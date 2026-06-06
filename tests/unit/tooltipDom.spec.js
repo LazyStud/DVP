@@ -199,4 +199,85 @@ describe('showCountryTooltip', () => {
     );
     expect(document.getElementById('map-tooltip').innerHTML).toContain('<svg');
   });
+
+  it('shows "Dominant" badge for pct >= 62', async () => {
+    state.choroByCountry = new Map([
+      ['india', { matches: 100, homeWins: 70, formats: {}, byYear: {} }],
+    ]);
+    loadVenuesForCountry.mockResolvedValue([]);
+    await showCountryTooltip(
+      { clientX: 0, clientY: 0 },
+      { properties: { name: 'India' } },
+    );
+    expect(document.getElementById('map-tooltip').innerHTML).toContain('Dominant');
+  });
+
+  it('shows "Strong home" badge for pct >= 54 and < 62', async () => {
+    state.choroByCountry = new Map([
+      ['india', { matches: 100, homeWins: 58, formats: {}, byYear: {} }],
+    ]);
+    loadVenuesForCountry.mockResolvedValue([]);
+    await showCountryTooltip(
+      { clientX: 0, clientY: 0 },
+      { properties: { name: 'India' } },
+    );
+    expect(document.getElementById('map-tooltip').innerHTML).toContain('Strong home');
+  });
+
+  it('shows "Away-friendly" badge for pct <= 40', async () => {
+    state.choroByCountry = new Map([
+      ['india', { matches: 100, homeWins: 30, formats: {}, byYear: {} }],
+    ]);
+    loadVenuesForCountry.mockResolvedValue([]);
+    await showCountryTooltip(
+      { clientX: 0, clientY: 0 },
+      { properties: { name: 'India' } },
+    );
+    expect(document.getElementById('map-tooltip').innerHTML).toContain('Away-friendly');
+  });
+
+  it('highlights best format with ctt-best class', async () => {
+    state.choroByCountry = new Map([
+      ['australia', {
+        matches: 50, homeWins: 30,
+        formats: {
+          test: { matches: 20, homeWins: 15 },
+          odi:  { matches: 18, homeWins: 5  },
+          t20:  { matches: 12, homeWins: 3  },
+        },
+        byYear: {},
+      }],
+    ]);
+    loadVenuesForCountry.mockResolvedValue([]);
+    await showCountryTooltip(
+      { clientX: 0, clientY: 0 },
+      { properties: { name: 'Australia' } },
+    );
+    const html = document.getElementById('map-tooltip').innerHTML;
+    expect(html).toContain('ctt-best');
+    expect(html).toContain('75%'); // 15/20 = 75%
+  });
+
+  it('shows "No match data" when canonicalMapName returns unknown country', async () => {
+    state.choroByCountry = new Map();
+    await showCountryTooltip(
+      { clientX: 0, clientY: 0 },
+      { properties: { name: 'Atlantis' } },
+    );
+    expect(document.getElementById('map-tooltip').innerHTML).toContain('No match data');
+  });
+
+  it('handles showCountryTooltip error gracefully', async () => {
+    state.choroByCountry = new Map([
+      ['india', { matches: 100, homeWins: 50, formats: {}, byYear: {} }],
+    ]);
+    // Make loadVenuesForCountry throw to exercise the inner catch
+    loadVenuesForCountry.mockRejectedValueOnce(new Error('fail'));
+    await showCountryTooltip(
+      { clientX: 0, clientY: 0 },
+      { properties: { name: 'India' } },
+    );
+    // Should still render basic HTML
+    expect(document.getElementById('map-tooltip').innerHTML).toContain('India');
+  });
 });

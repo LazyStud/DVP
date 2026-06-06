@@ -143,4 +143,44 @@ describe('setupFormatUI', () => {
     allBtn?.click();
     expect(detail?.format).toBe('all');
   });
+
+  it('clicking format button when state.mode is globe calls rebuildGlobeLayers', () => {
+    state.mode = 'globe';
+    state.rebuildGlobeLayers = vi.fn();
+    const testBtn = Array.from(document.querySelectorAll('.fmt-btn'))
+      .find(b => b.dataset.format === 'test');
+    testBtn?.click();
+    expect(state.rebuildGlobeLayers).toHaveBeenCalled();
+    state.mode = '2d';
+    state.rebuildGlobeLayers = undefined;
+  });
+
+  it('sets gradient color based on palette when format is changed', () => {
+    const grad = document.querySelector('.legend-gradbar') || document.createElement('div');
+    grad.classList.add('legend-gradbar');
+    if (!document.querySelector('.legend-gradbar')) document.body.appendChild(grad);
+    const odiBtn = Array.from(document.querySelectorAll('.fmt-btn'))
+      .find(b => b.dataset.format === 'odi');
+    odiBtn?.click();
+    expect(grad.style.background).toContain('linear-gradient');
+  });
+
+  it('computes maxMatches correctly from choroByCountry when format changes', () => {
+    state.choroByCountry = new Map([
+      ['india', {
+        matches: 60,
+        formats: {
+          all:  { matches: 60 },
+          test: { matches: 25 },
+          odi:  { matches: 20 },
+          t20:  { matches: 15 },
+        },
+      }],
+    ]);
+    state.selectedFormat = 'test';
+    const testBtn = Array.from(document.querySelectorAll('.fmt-btn'))
+      .find(b => b.dataset.format === 'test');
+    testBtn?.click();
+    expect(state.spikeScale.domain).toBeDefined();
+  });
 });

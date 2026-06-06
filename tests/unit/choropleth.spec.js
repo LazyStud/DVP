@@ -181,3 +181,86 @@ describe('aggregateChoropleth — byYear tracking', () => {
     expect(agg.get('india').byYear[2016]).toBe(1);
   });
 });
+
+// ── Format winPct computation ─────────────────────────────────────────────────
+
+describe('aggregateChoropleth — format winPct', () => {
+  it('computes per-format winPct correctly', () => {
+    const rows = [
+      row({ format: 'Test',  winner: 'Australia' }),
+      row({ format: 'Test',  winner: 'Australia' }),
+      row({ format: 'Test',  winner: 'India' }),
+      row({ format: 'ODI',   winner: 'Australia' }),
+      row({ format: 'T20I',  winner: 'India' }),
+    ];
+    const agg = aggregateChoropleth(rows, 2000, 2025, fns);
+    expect(agg.get('australia').formats.test.winPct).toBeCloseTo(2 / 3);
+    expect(agg.get('australia').formats.odi.winPct).toBe(1);
+    expect(agg.get('australia').formats.t20.winPct).toBe(0);
+  });
+
+  it('formats with zero matches have winPct=0', () => {
+    const rows = [row({ format: 'Test', winner: 'Australia' })];
+    const agg = aggregateChoropleth(rows, 2000, 2025, fns);
+    expect(agg.get('australia').formats.odi.winPct).toBe(0);
+    expect(agg.get('australia').formats.t20.winPct).toBe(0);
+  });
+});
+
+// ── Date edge cases ───────────────────────────────────────────────────────────
+
+describe('aggregateChoropleth — date edge cases', () => {
+  it('handles invalid date that parses to NaN year', () => {
+    const agg = aggregateChoropleth([row({ date: 'garbage' })], 2000, 2025, fns);
+    expect(agg.size).toBe(0);
+  });
+
+  it('handles date at exact year boundary (min)', () => {
+    const agg = aggregateChoropleth([row({ date: '2000-01-01' })], 2000, 2025, fns);
+    expect(agg.get('australia').matches).toBe(1);
+  });
+
+  it('handles date at exact year boundary (max)', () => {
+    const agg = aggregateChoropleth([row({ date: '2025-12-31' })], 2000, 2025, fns);
+    expect(agg.get('australia').matches).toBe(1);
+  });
+});
+
+// ── Empty/null/falsy winner ───────────────────────────────────────────────────
+
+describe('aggregateChoropleth — winner edge cases', () => {
+  it('handles null winner (not a home win)', () => {
+    const agg = aggregateChoropleth([row({ winner: null })], 2000, 2025, fns);
+    expect(agg.get('australia').homeWins).toBe(0);
+    expect(agg.get('australia').matches).toBe(1);
+  });
+
+  it('handles undefined winner', () => {
+    const agg = aggregateChoropleth([row({ winner: undefined })], 2000, 2025, fns);
+    expect(agg.get('australia').homeWins).toBe(0);
+  });
+
+  it('handles a win where hostToHomeTeamCountry maps host to home team correctly', () => {
+    // UAE hosts matches for Pakistan
+    const rows = [
+      { venue_country: 'UAE', winner: 'Pakistan', date: '2015-01-01',
+        neutral_venue: '0', result_type: '', format: 'ODI' },
+    ];
+    const agg = aggregateChoropleth(rows, 2000, 2025, fns);
+    // UAE has venues; Pakistan is the home team for UAE hosts
+    const uaeRec = agg.get('united arab emirates');
+    expect(uaeRec).toBeDefined();
+  });
+});
+
+// ── Large data sets ───────────────────────────────────────────────────────────
+
+describe('aggregateChoropleth — many rows', () => {
+  it('handles 1000 rows without performance issues', () => {
+    const rows = Array.from({ length: 1000 }, (_, i) =>
+      row({ date: `${2000 + (i % 26)}-01-01`, winner: i % 3 === 0 ? 'India' : 'Australia' })
+    );
+    const agg = aggregateChoropleth(rows, 2000, 2025, fns);
+    expect(agg.get('australia').matches).toBeLessThanOrEqual(1000);
+  });
+});

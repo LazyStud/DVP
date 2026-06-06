@@ -239,18 +239,17 @@ describe('sort by best column', () => {
   it('clicking "best" header sorts bowling rows by wicket count', async () => {
     getBowlingLeaderboard.mockResolvedValue([
       { player: 'Bowler X', team: 'IND', wkts: 20, eco: 6.0, avg: 25, matches: 10,
-        five_wkts: 1, best: '5/23' },   // numeric best: 5/23
+        five_wkts: 1, best: '5/23' },
       { player: 'Bowler Y', team: 'AUS', wkts: 15, eco: 5.5, avg: 28, matches: 9,
-        five_wkts: 0, best: 4 },         // numeric best (typeof === 'number')
+        five_wkts: 0, best: 4 },
       { player: 'Bowler Z', team: 'ENG', wkts: 10, eco: 7.0, avg: 30, matches: 8,
-        five_wkts: 0, best: 'N/A' },     // won't match digit regex → {wk:0,runs:0}
+        five_wkts: 0, best: 'N/A' },
     ]);
     await renderLeaderboard('bowling');
     const bestTh = document.querySelector('#tabpanel th[data-col="best"]');
-    bestTh?.click(); // sort desc by best
+    bestTh?.click();
     const rows = document.querySelectorAll('#tabpanel tbody tr');
     expect(rows.length).toBeGreaterThan(0);
-    // After sort, first row should be the one with highest wk in "best"
     expect(rows[0].textContent).toContain('Bowler X');
   });
 
@@ -263,10 +262,99 @@ describe('sort by best column', () => {
     ]);
     await renderLeaderboard('bowling');
     const bestTh = document.querySelector('#tabpanel th[data-col="best"]');
-    bestTh?.click(); // desc
-    bestTh?.click(); // asc
+    bestTh?.click();
+    bestTh?.click();
     const rows = document.querySelectorAll('#tabpanel tbody tr');
-    // asc → lowest wk first → Beta (3) before Alpha (6)
     expect(rows[0].textContent).toContain('Beta');
+  });
+});
+
+// ── Sort other columns ───────────────────────────────────────────────────────
+
+describe('sort by other columns', () => {
+  // The initial sortState defaults to {col:'runs', dir:'desc'} for batting.
+  // So clicking "runs" the first time flips to asc (Low first).
+  // Clicking "runs" again flips back to desc (High first).
+  it('clicking "runs" header first time flips from initial desc to asc', async () => {
+    getBattingLeaderboard.mockResolvedValue([
+      { player: 'Low',  team: 'A', runs: 100, sr: 50, avg: 10, matches: 5, balls: 0, hundreds: 0, fifties: 0, best: '10' },
+      { player: 'High', team: 'B', runs: 500, sr: 80, avg: 50, matches: 10, balls: 0, hundreds: 2, fifties: 1, best: '100' },
+    ]);
+    await renderLeaderboard('batting');
+    const runsTh = document.querySelector('#tabpanel th[data-col="runs"]');
+    runsTh?.click(); // flips desc→asc
+    const rows = document.querySelectorAll('#tabpanel tbody tr');
+    expect(rows[0].textContent).toContain('Low');
+  });
+
+  it('clicking "runs" header twice flips back to desc', async () => {
+    getBattingLeaderboard.mockResolvedValue([
+      { player: 'Low',  team: 'A', runs: 100, sr: 50, avg: 10, matches: 5, balls: 0, hundreds: 0, fifties: 0, best: '10' },
+      { player: 'High', team: 'B', runs: 500, sr: 80, avg: 50, matches: 10, balls: 0, hundreds: 2, fifties: 1, best: '100' },
+    ]);
+    await renderLeaderboard('batting');
+    const runsTh = document.querySelector('#tabpanel th[data-col="runs"]');
+    runsTh?.click(); // asc
+    runsTh?.click(); // desc
+    const rows = document.querySelectorAll('#tabpanel tbody tr');
+    expect(rows[0].textContent).toContain('High');
+  });
+
+  it('clicking "matches" header sorts correctly', async () => {
+    getBattingLeaderboard.mockResolvedValue([
+      { player: 'A', team: 'X', runs: 300, matches: 20, sr: 60, avg: 30, balls: 0, hundreds: 0, fifties: 0, best: '50' },
+      { player: 'B', team: 'Y', runs: 200, matches: 10, sr: 50, avg: 20, balls: 0, hundreds: 0, fifties: 0, best: '30' },
+    ]);
+    await renderLeaderboard('batting');
+    const mTh = document.querySelector('#tabpanel th[data-col="matches"]');
+    mTh?.click();
+    const rows = document.querySelectorAll('#tabpanel tbody tr');
+    expect(rows[0].textContent).toContain('A'); // 20 matches first
+  });
+});
+
+// ── leaderboard row click for bowler ─────────────────────────────────────────
+
+describe('tbody player row click — bowler', () => {
+  it('clicking a live-data bowler row calls openPlayer', async () => {
+    getBowlingLeaderboard.mockResolvedValue([
+      { player: 'P Cummins', team: 'AUS', wkts: 30, eco: 5.5, avg: 22,
+        matches: 15, five_wkts: 2, best: '5/23' },
+    ]);
+    await renderLeaderboard('bowling');
+    const tbody = document.querySelector('#tabpanel tbody');
+    const firstRow = tbody?.querySelector('tr');
+    firstRow?.querySelector('td')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const { openPlayer } = await import('../../src/ui/playerWindow.js');
+    expect(openPlayer).toHaveBeenCalledWith('P Cummins', 'AUS', 'bowling');
+  });
+
+  it('clicking demo fallback bowler row (Bowler A) does NOT call openPlayer', async () => {
+    getBowlingLeaderboard.mockRejectedValue(new Error('no db'));
+    await renderLeaderboard('bowling');
+    const { openPlayer } = await import('../../src/ui/playerWindow.js');
+    openPlayer.mockClear();
+    const firstRow = document.querySelector('#tabpanel tbody tr');
+    firstRow?.querySelector('td')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(openPlayer).not.toHaveBeenCalled();
+  });
+});
+
+// ── Escape key closes leaderboard ────────────────────────────────────────────
+
+describe('Escape key closes leaderboard', () => {
+  it('pressing Escape hides the overlay', () => {
+    wireLeaderboardEvents();
+    openOverlay();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.getElementById('leaderboardOverlay').classList.contains('open')).toBe(false);
+  });
+
+  it('pressing Escape when overlay is already hidden does not throw', () => {
+    wireLeaderboardEvents();
+    document.getElementById('leaderboardOverlay').hidden = true;
+    expect(() =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    ).not.toThrow();
   });
 });

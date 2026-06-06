@@ -134,4 +134,37 @@ describe('error handling', () => {
     expect(document.querySelector('.insights-placeholder')?.textContent)
       .toContain('Could not load data');
   });
+
+  it('shows error placeholder in topList and empties bottomList on query failure', async () => {
+    getVenueTossBias.mockRejectedValue(new Error('db error'));
+    await open();
+    const topPlaceholder = document.querySelector('.insights-placeholder');
+    const bottomList = document.querySelector('.insights-bottom .insights-list');
+    expect(topPlaceholder).not.toBeNull();
+    if (bottomList) expect(bottomList.innerHTML).toBe('');
+  });
+});
+
+// ── panel dismissal ───────────────────────────────────────────────────────────
+
+describe('panel dismissal', () => {
+  it('closes when clicking outside the panel', async () => {
+    vi.useFakeTimers();
+    await open();
+    // Simulate pointerdown on body (outside panel)
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(document.getElementById('insights-window').classList.contains('open')).toBe(false);
+    vi.runAllTimers();
+    vi.useRealTimers();
+  });
+
+  it('closes when clicking backdrop', async () => {
+    vi.useFakeTimers();
+    await open();
+    const backdrop = document.getElementById('backdrop');
+    backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(document.getElementById('insights-window').classList.contains('open')).toBe(false);
+    vi.runAllTimers();
+    vi.useRealTimers();
+  });
 });
